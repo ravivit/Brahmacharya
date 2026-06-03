@@ -912,7 +912,7 @@ async function updateClubButtons(totalMins, openMins, closeMins) {
 
 async function hasClubCheckinToday(dateStr) {
   if (!currentUser) return false;
-  const { data } = await supabase
+  const { data } = await sb
     .from('club_checkins')
     .select('id')
     .eq('user_id', currentUser.id)
@@ -975,7 +975,7 @@ async function loadClubData() {
 }
 
 async function loadMyClubHistory() {
-  const { data } = await supabase
+  const { data } = await sb
     .from('club_checkins')
     .select('checkin_date, checkin_time, points')
     .eq('user_id', currentUser.id)
@@ -1018,7 +1018,7 @@ async function loadMyClubHistory() {
 }
 
 async function loadClubLeaderboard() {
-  const { data } = await supabase
+  const { data } = await sb
     .from('club_checkins')
     .select('user_id, checkin_date, checkin_time, points');
 
@@ -1032,7 +1032,7 @@ async function loadClubLeaderboard() {
   });
 
   // Get names
-  const { data: profiles } = await supabase
+  const { data: profiles } = await sb
     .from('users')
     .select('id, name');
 
