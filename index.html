@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brahmacharya Tracker</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#7b2fff" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Brahmacharya" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+</head>
+<body>
+
+<audio id="bgMusic" loop>
+  <source src="https://cdn.freesound.org/previews/612/612458_5674468-lq.mp3" type="audio/mpeg" />
+</audio>
+
+<button class="install-btn" id="installBtn" onclick="installApp()" title="Install App" style="display:none">
+  📲 Install App
+</button>
+<div id="particles"></div>
+<button class="music-btn" id="musicToggle" title="Toggle Music">🎵</button>
+
+<!-- ==================== AUTH SCREEN ==================== -->
+<div class="screen" id="authScreen">
+  <div class="auth-box">
+    <div class="auth-glow"></div>
+    <div class="auth-logo">🔱</div>
+    <h1 class="auth-title">BRAHMACHARYA</h1>
+    <p class="auth-sub">TRACKER — MASTER YOURSELF</p>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="switchTab('login')">LOGIN</button>
+      <button class="auth-tab" id="tabRegister" onclick="switchTab('register')">REGISTER</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="loginForm">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="your@email.com" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" />
+      </div>
+      <button class="btn-primary" id="loginBtn">🔥 LOGIN</button>
+      <p class="auth-err" id="loginErr"></p>
+    </div>
+
+    <!-- Register Form -->
+    <div id="registerForm" style="display:none">
+      <div class="form-group">
+        <label>Warrior Name</label>
+        <input type="text" id="regName" placeholder="Your name..." maxlength="30" />
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="regEmail" placeholder="your@email.com" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="regPassword" placeholder="Min 6 characters" />
+      </div>
+      <div class="form-group">
+        <label>Your Sankalp / Goal</label>
+        <textarea id="regGoal" placeholder="Why are you doing this?" rows="2"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Journey Start Date</label>
+        <input type="date" id="regStartDate" />
+      </div>
+      <button class="btn-primary" id="registerBtn">⚡ START JOURNEY</button>
+      <p class="auth-err" id="registerErr"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MAIN APP ==================== -->
+<div class="screen" id="mainScreen" style="display:none">
+  <div class="app">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header-left">
+        <div class="avatar" id="avatarEl"></div>
+        <div class="header-info">
+          <h1 class="warrior-name" id="warriorName"></h1>
+         <p class="warrior-goal" id="warriorGoal"></p>
+<button class="btn-join-club" onclick="showClub()">🌅 Join 5AM Club</button>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="stat-pill"><span class="stat-label">🔥 Streak</span><span class="stat-val" id="headerStreak">0</span></div>
+        <div class="stat-pill"><span class="stat-label">⚡ Points</span><span class="stat-val" id="headerPoints">0</span></div>
+       <div class="stat-pill"><span class="stat-label">📅 Day</span><span class="stat-val" id="headerDay">1</span></div>
+<div class="stat-pill"><span class="stat-label">🏆 Best</span><span class="stat-val" id="headerBest">0</span></div>
+        <button class="btn-nav" onclick="showClub()" title="5AM Club">🌅</button>
+       <button class="btn-nav-text" id="adminBtn" onclick="showAdmin()">🏆 Leaderboard</button>
+        <button class="btn-nav" id="logoutBtn" title="Logout">🚪</button>
+      </div>
+    </header>
+
+    <!-- TODAY CARD -->
+    <section class="today-section">
+      <div class="today-card">
+        <div class="today-glow"></div>
+        <div class="today-left">
+          <div class="today-date" id="todayDate"></div>
+          <div class="today-label">TODAY'S CHECK-IN</div>
+          <div class="today-status" id="todayStatus">Pending...</div>
+        </div>
+        <div class="today-right">
+          <button class="btn-done" id="btnDone">✅ DONE — I Stayed Strong</button>
+          <button class="btn-missed" id="btnMissed">💀 MISSED — I Slipped</button>
+        </div>
+      </div>
+      <div class="trigger-section">
+        <h3 class="section-title">⚠️ My Trigger Points</h3>
+        <div class="triggers-list" id="triggersList"></div>
+        <div class="trigger-add">
+          <input type="text" id="triggerInput" placeholder="Add a trigger (e.g. Late night phone use)..." />
+          <button class="btn-add-trigger" id="addTriggerBtn">+ Add</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- STREAK HISTORY -->
+    <section class="card-section">
+      <h3 class="section-title">🏆 Streak History</h3>
+      <div class="streak-history" id="streakHistory"></div>
+    </section>
+
+    <!-- CHALLENGES -->
+    <section class="card-section">
+      <h3 class="section-title">⚔️ Challenges</h3>
+      <div class="challenges-grid" id="challengesGrid"></div>
+    </section>
+
+    <!-- POINTS -->
+    <section class="card-section">
+      <h3 class="section-title">💎 Points System</h3>
+      <div class="points-grid">
+        <div class="point-card"><span class="pc-label">Daily</span><span class="pc-val">+10 pts</span></div>
+        <div class="point-card"><span class="pc-label">3-Day Bonus</span><span class="pc-val">+20 pts</span></div>
+        <div class="point-card"><span class="pc-label">7-Day Bonus</span><span class="pc-val">+30 pts</span></div>
+        <div class="point-card"><span class="pc-label">15-Day Bonus</span><span class="pc-val">+40 pts</span></div>
+        <div class="point-card"><span class="pc-label">21-Day Bonus</span><span class="pc-val">+50 pts</span></div>
+        <div class="point-card"><span class="pc-label">30-Day Bonus</span><span class="pc-val">+60 pts</span></div>
+        <div class="point-card"><span class="pc-label">90-Day Bonus</span><span class="pc-val">+90 pts</span></div>
+        <div class="point-card highlight"><span class="pc-label">MTV 50+ Pts</span><span class="pc-val">2× Points</span></div>
+      </div>
+    </section>
+
+    <!-- CALENDAR -->
+    <section class="card-section">
+      <h3 class="section-title">📅 6-Month Journey — June to December 2025</h3>
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </section>
+
+    <!-- MOTIVATION -->
+    <section class="card-section" style="margin-bottom:2rem">
+      <h3 class="section-title">💪 Daily Motivation</h3>
+      <div class="motivation-ticker" id="motivationTicker"></div>
+    </section>
+
+  </div>
+</div>
+
+<!-- ==================== ADMIN DASHBOARD ==================== -->
+<div class="screen" id="adminScreen" style="display:none">
+  <div class="app">
+    <header class="header">
+      <div class="header-left">
+        <h1 class="warrior-name">👥 Admin Dashboard</h1>
+        <p class="warrior-goal">All Warriors Overview</p>
+      </div>
+      <div class="header-right">
+        <button class="btn-nav" onclick="showMain()">← Back</button>
+      </div>
+    </header>
+
+    <!-- STATS ROW -->
+    <div class="admin-stats" id="adminStats"></div>
+
+    <!-- LEADERBOARD -->
+    <section class="card-section">
+      <h3 class="section-title">🏆 Leaderboard — Points</h3>
+      <div id="leaderboardPts"></div>
+    </section>
+
+    <!-- STREAK LEADERBOARD -->
+    <section class="card-section">
+      <h3 class="section-title">🔥 Leaderboard — Streak</h3>
+      <div id="leaderboardStreak"></div>
+    </section>
+
+    <!-- ALL USERS TABLE -->
+    <section class="card-section" style="margin-bottom:2rem">
+      <h3 class="section-title">📋 All Warriors</h3>
+      <div id="allUsersTable"></div>
+    </section>
+  </div>
+</div>
+
+<!-- ==================== 5AM CLUB SCREEN ==================== -->
+<div class="screen" id="clubScreen" style="display:none">
+  <div class="app">
+    <header class="header">
+      <div class="header-left">
+        <div class="avatar">🌅</div>
+        <div class="header-info">
+          <h1 class="warrior-name">5AM CLUB</h1>
+          <p class="warrior-goal">Rise before the sun. Win the day.</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="stat-pill"><span class="stat-label">🔥 Streak</span><span class="stat-val" id="clubStreak">0</span></div>
+        <div class="stat-pill"><span class="stat-label">⚡ Pts Today</span><span class="stat-val" id="clubPtsToday">—</span></div>
+        <button class="btn-nav" onclick="showMain()">← Back</button>
+      </div>
+    </header>
+
+    <!-- CHECK-IN CARD -->
+    <section class="today-section">
+      <div class="today-card" id="clubCheckinCard">
+        <div class="today-glow"></div>
+        <div class="today-left">
+          <div class="today-date" id="clubTime">--:--:--</div>
+          <div class="today-label">MORNING CHECK-IN WINDOW</div>
+          <div class="today-status" id="clubWindowStatus">Loading...</div>
+        </div>
+        <div class="today-right">
+          <div id="clubBtnArea">
+            <button class="btn-club-join" id="clubJoinBtn" onclick="clubCheckIn()" style="display:none">
+              🌅 JOIN 5AM CLUB
+            </button>
+            <div class="club-closed-msg" id="clubClosedMsg" style="display:none">
+              🔒 Window closed — See you at 4:45 AM tomorrow
+            </div>
+            <div class="club-done-msg" id="clubDoneMsg" style="display:none">
+              ✅ Checked in today!
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ZOOM LINK -->
+    <section class="card-section" style="text-align:center;padding:1.5rem">
+      <h3 class="section-title">📹 Today's Session</h3>
+      <p style="color:var(--muted);font-size:.9rem;margin-bottom:1.25rem">Join the live session — opens at 5:00 AM</p>
+      <a id="zoomLink" href="https://meet.google.com/qcm-njtw-cyq" target="_blank" class="btn-zoom">
+        📹 Join Zoom / Meet
+      </a>
+    </section>
+
+    <!-- MY HISTORY -->
+    <section class="card-section">
+      <h3 class="section-title">📅 My 5AM History</h3>
+      <div id="clubMyHistory" class="club-history-grid"></div>
+    </section>
+
+    <!-- LEADERBOARD -->
+    <section class="card-section" style="margin-bottom:2rem">
+      <h3 class="section-title">🏆 5AM Leaderboard</h3>
+      <div class="club-lb-tabs">
+        <button class="club-lb-tab active" id="tabLbStreak" onclick="switchClubTab('streak')">🔥 Streak</button>
+        <button class="club-lb-tab" id="tabLbPts" onclick="switchClubTab('pts')">⚡ Points</button>
+        <button class="club-lb-tab" id="tabLbTime" onclick="switchClubTab('time')">⏰ Earliest Today</button>
+      </div>
+      <div id="clubLeaderboard"></div>
+    </section>
+
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').then(reg => {
+        console.log('SW registered:', reg.scope);
+      }).catch(err => console.log('SW error:', err));
+    });
+  }
+  let deferredPrompt;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    const btn = document.getElementById('installBtn');
+    if (btn) btn.style.display = 'flex';
+  });
+  window.addEventListener('appinstalled', () => {
+    const btn = document.getElementById('installBtn');
+    if (btn) btn.style.display = 'none';
+    deferredPrompt = null;
+  });
+  window.installApp = function() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => {
+      deferredPrompt = null;
+      const btn = document.getElementById('installBtn');
+      if (btn) btn.style.display = 'none';
+    });
+  };
+</script>
+</body>
+</html>

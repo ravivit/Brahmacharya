@@ -1,0 +1,1065 @@
+// ============================================================
+// CONFIG — apni keys yahan paste karo
+// ============================================================
+const SUPABASE_URL      = 'https://peoagetztkavmxzkbpgk.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlb2FnZXR6dGthdm14emticGdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMzk2OTgsImV4cCI6MjA5NTkxNTY5OH0.KQ3iBjkw3JaMkdu8JVjsKz0tpcTRcjz9gGaFfmcSz1U';
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+const MONTHS       = ['June','July','August','September','October','November','December'];
+const MONTH_NUMS   = [5,6,7,8,9,10,11]; // JS month index (0=Jan)
+const YEAR         = new Date().getFullYear();
+const DAY_NAMES    = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+const CHALLENGES = [
+  { id:'c1',  days:1,  label:'Beej',        icon:'🪙', bracket:'First Spark',       metal:'Copper'   },
+  { id:'c3',  days:3,  label:'Arambha',     icon:'🏅', bracket:'Stay Consistent',   metal:'Bronze'   },
+  { id:'c7',  days:7,  label:'Tapasvi',     icon:'🥈', bracket:'Discipline Forged', metal:'Silver'   },
+  { id:'c15', days:15, label:'Dhira',       icon:'🥇', bracket:'Positive Aura',     metal:'Gold'     },
+  { id:'c21', days:21, label:'Vira',        icon:'💎', bracket:'Disciplined Aura',  metal:'Diamond'  },
+  { id:'c30', days:30, label:'Ojas',        icon:'✨', bracket:'Powerful Aura',     metal:'Kohinoor' },
+  { id:'c90', days:90, label:'Brahmachari', icon:'👑', bracket:'Powerful Man',      metal:'Crown'    },
+];
+
+const MOTIVATIONS = [
+  "🔱 Brahmacharya is not suppression — it is transformation of energy into greatness.",
+  "💪 Every urge resisted is a brick in the temple of your willpower.",
+  "🌟 The man who masters himself masters the world. Stay strong, warrior.",
+  "🧠 Your brain is rewiring itself. Each clean day makes you sharper, calmer, more powerful.",
+  "⚡ Discipline today is freedom tomorrow. Don't trade your future for a moment of weakness.",
+  "🔥 You are not fighting an addiction — you are reclaiming your life force.",
+  "🌙 Sleep clean tonight. Wake up powerful tomorrow.",
+  "🦁 Lions don't explain themselves to sheep. Stay silent. Stay strong. Keep building.",
+  "🎯 Clarity comes from commitment. The further you go, the clearer your vision becomes.",
+  "🙏 Every day of Brahmacharya is a prayer to your highest self.",
+  "⚔️ The battlefield is your mind. Win there, and you win everywhere.",
+  "🌅 Brahmacharya fills you with prana — life force. Guard it like a warrior guards his kingdom.",
+  "🧘 Stillness is strength. Peace is power. Your urges are just tests — pass them.",
+  "💎 Diamonds are made under pressure. Your restraint is creating something priceless.",
+  "🔑 The door to your potential opens only when you stop leaking your energy.",
+  "🌿 Nature rewards discipline. Watch your life bloom as you practice Brahmacharya.",
+  "👁️ See clearly. Think clearly. Feel deeply. This is what purity gives you.",
+  "🏔️ Every mountain is climbed one step at a time. Every streak is built one day at a time.",
+  "✨ You are not just quitting a habit. You are becoming a new version of yourself.",
+  "🚀 Your energy is your superpower. Guard it. Grow it. Unleash it on your goals."
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let sb          = null;
+let currentUser = null;   // Supabase auth user
+let profile     = null;   // { name, goal, startDate, user_id }
+let logs        = {};     // { 'YYYY-MM-DD': 'done'|'missed' }
+let triggers    = [];
+let streakHistory   = [];
+let currentStreak   = 0;
+let totalPoints     = 0;
+let musicPlaying    = false;
+
+const today    = new Date(); today.setHours(0,0,0,0);
+const todayStr = fmtDate(today);
+
+// ============================================================
+// UTILS
+// ============================================================
+function fmtDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function parseDate(s) {
+  const [y,m,d] = s.split('-').map(Number);
+  const dt = new Date(y,m-1,d); dt.setHours(0,0,0,0); return dt;
+}
+function daysFrom(startStr) {
+  return Math.floor((today - parseDate(startStr)) / 86400000) + 1;
+}
+function el(id) { return document.getElementById(id); }
+function showToast(msg, dur=3000) {
+  const t = el('toast'); t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+function showScreen(id) {
+  ['authScreen','mainScreen','adminScreen','clubScreen'].forEach(s => {
+    el(s).style.display = s === id ? 'block' : 'none';
+  });
+}
+
+// ============================================================
+// SUPABASE INIT
+// ============================================================
+function initSB() {
+  try {
+    if (window.supabase && window.supabase.createClient) {
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      console.log('✅ Supabase ready');
+    } else {
+      console.warn('Supabase CDN not loaded');
+    }
+  } catch(e) { console.error('Supabase init error:', e); }
+}
+
+// ============================================================
+// AUTH FUNCTIONS
+// ============================================================
+function switchTab(tab) {
+  el('loginForm').style.display    = tab==='login'    ? 'block' : 'none';
+  el('registerForm').style.display = tab==='register' ? 'block' : 'none';
+  el('tabLogin').classList.toggle('active', tab==='login');
+  el('tabRegister').classList.toggle('active', tab==='register');
+}
+
+async function doLogin() {
+  const email = el('loginEmail').value.trim();
+  const pass  = el('loginPassword').value;
+  el('loginErr').textContent = '';
+  if (!email || !pass) { el('loginErr').textContent = '❌ Fill all fields'; return; }
+  const btn = el('loginBtn');
+  btn.disabled = true; btn.textContent = '⏳ Logging in...';
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) throw error;
+    await onLogin(data.user);
+  } catch(e) {
+    el('loginErr').textContent = '❌ ' + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = '🔥 LOGIN';
+  }
+}
+
+async function doRegister() {
+  const name      = el('regName').value.trim();
+  const email     = el('regEmail').value.trim();
+  const pass      = el('regPassword').value;
+  const goal      = el('regGoal').value.trim();
+  const startDate = el('regStartDate').value;
+  el('registerErr').textContent = '';
+  if (!name || !email || !pass || !startDate) { el('registerErr').textContent = '❌ Fill all required fields'; return; }
+  if (pass.length < 6) { el('registerErr').textContent = '❌ Password min 6 chars'; return; }
+  const btn = el('registerBtn');
+  btn.disabled = true; btn.textContent = '⏳ Creating account...';
+  try {
+    // 1. Create auth user
+    const { data, error } = await sb.auth.signUp({ email, password: pass });
+    if (error) throw error;
+    const user = data.user;
+    // 2. Save profile
+    const prof = { user_id: user.id, name, goal, startDate, email };
+    const { error: pe } = await sb.from('bct_profiles').upsert(prof, { onConflict: 'user_id' });
+    if (pe) throw pe;
+    // 3. Save empty triggers
+    await sb.from('bct_triggers').upsert({ user_id: user.id, triggers: [] }, { onConflict: 'user_id' });
+    await onLogin(user);
+    showToast(`🔥 Welcome, ${name}! Journey begins!`, 4000);
+  } catch(e) {
+    el('registerErr').textContent = '❌ ' + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = '⚡ START JOURNEY';
+  }
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  currentUser = null; profile = null; logs = {}; triggers = [];
+  showScreen('authScreen');
+}
+
+async function onLogin(user) {
+  currentUser = user;
+  // Load profile
+  const { data: prof } = await sb.from('bct_profiles').select('*').eq('user_id', user.id).maybeSingle();
+  if (!prof) {
+    // Profile not set — show auth to fill details (edge case for email confirm flow)
+    showScreen('authScreen');
+    return;
+  }
+  profile = prof;
+  // Load logs
+  const { data: logRows } = await sb.from('bct_logs').select('*').eq('user_id', user.id);
+  logs = {};
+  if (logRows) logRows.forEach(r => logs[r.date] = r.status);
+  // Load triggers
+  const { data: tRow } = await sb.from('bct_triggers').select('*').eq('user_id', user.id).maybeSingle();
+  triggers = tRow && tRow.triggers ? tRow.triggers : [];
+
+  showScreen('mainScreen');
+  renderAll();
+}
+
+// ============================================================
+// DATA SAVE
+// ============================================================
+async function saveLog(dateStr, status) {
+  logs[dateStr] = status;
+  await sb.from('bct_logs').upsert({ user_id: currentUser.id, date: dateStr, status }, { onConflict: 'user_id,date' });
+}
+
+async function saveTriggers() {
+  await sb.from('bct_triggers').upsert({ user_id: currentUser.id, triggers }, { onConflict: 'user_id' });
+}
+
+// ============================================================
+// COMPUTE STATS
+// ============================================================
+function computeStats() {
+  const doneDays = Object.entries(logs).filter(([,v])=>v==='done').map(([k])=>k).sort();
+
+  // Current streak — walk back from today
+  currentStreak = 0;
+  const chk = new Date(today);
+  while (true) {
+    const ds = fmtDate(chk);
+    if (logs[ds] === 'done') { currentStreak++; chk.setDate(chk.getDate()-1); }
+    else break;
+  }
+
+  // All streaks history
+  streakHistory = [];
+  if (doneDays.length > 0) {
+    let sStart = doneDays[0], sLen = 1;
+    for (let i=1; i<doneDays.length; i++) {
+      const diff = (parseDate(doneDays[i]) - parseDate(doneDays[i-1])) / 86400000;
+      if (diff === 1) { sLen++; }
+      else { streakHistory.push({ start:sStart, end:doneDays[i-1], length:sLen }); sStart=doneDays[i]; sLen=1; }
+    }
+    streakHistory.push({ start:sStart, end:doneDays[doneDays.length-1], length:sLen });
+  }
+
+  // Points
+  totalPoints = 0;
+  let run = 0;
+  const allDates = [];
+  if (profile && profile.startDate) {
+    let d = parseDate(profile.startDate);
+    while (d <= today) { allDates.push(fmtDate(d)); d.setDate(d.getDate()+1); }
+  }
+  allDates.forEach(ds => {
+    if (logs[ds] === 'done') {
+      run++;
+      totalPoints += 10;
+    } else if (logs[ds] === 'missed') { run = 0; }
+  });
+}
+
+// ============================================================
+// RENDER — HEADER
+// ============================================================
+function renderHeader() {
+  if (!profile) return;
+  el('warriorName').textContent  = profile.name;
+  el('warriorGoal').textContent  = profile.goal || 'Stay strong, warrior!';
+  el('avatarEl').textContent     = profile.name.charAt(0).toUpperCase();
+  el('headerStreak').textContent = currentStreak;
+  el('headerPoints').textContent = totalPoints;
+el('headerDay').textContent    = profile.startDate ? Math.max(1, daysFrom(profile.startDate)) : 1;
+el('headerBest').textContent   = Math.max(...streakHistory.map(s=>s.length), 0);
+}
+
+// ============================================================
+// RENDER — TODAY
+// ============================================================
+function renderToday() {
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  el('todayDate').textContent = `${dayNames[today.getDay()]}, ${today.getDate()} ${today.toLocaleString('default',{month:'long'})} ${today.getFullYear()}`;
+  const status = logs[todayStr];
+  const bD = el('btnDone'), bM = el('btnMissed');
+  if (status === 'done') {
+    el('todayStatus').textContent = '✅ Done — You stayed strong today!';
+    el('todayStatus').style.color = '#10b981';
+    bD.disabled = bM.disabled = true;
+  } else if (status === 'missed') {
+    el('todayStatus').textContent = '💀 Missed — Get back up tomorrow!';
+    el('todayStatus').style.color = '#ef4444';
+    bD.disabled = bM.disabled = true;
+  } else {
+    el('todayStatus').textContent = '⏳ Pending — Check in before you sleep';
+    el('todayStatus').style.color = '#f59e0b';
+    bD.disabled = bM.disabled = false;
+  }
+}
+
+// ============================================================
+// RENDER — TRIGGERS
+// ============================================================
+function renderTriggers() {
+  const list = el('triggersList');
+  list.innerHTML = '';
+  if (!triggers.length) {
+    list.innerHTML = '<span style="color:var(--muted);font-size:.85rem;font-style:italic;">No triggers yet. Identify what tempts you!</span>';
+    return;
+  }
+  triggers.forEach((t,i) => {
+    const tag = document.createElement('div');
+    tag.className = 'trigger-tag';
+    tag.innerHTML = `⚠️ ${t} <button onclick="removeTrigger(${i})">✕</button>`;
+    list.appendChild(tag);
+  });
+}
+
+// ============================================================
+// RENDER — STREAK HISTORY
+// ============================================================
+function renderStreakHistory() {
+  const c = el('streakHistory'); c.innerHTML = '';
+  if (!streakHistory.length) { c.innerHTML = '<span class="streak-empty">No streaks yet — start today! 💪</span>'; return; }
+  [...streakHistory].reverse().forEach(s => {
+    const b = document.createElement('div'); b.className = 'streak-badge';
+    const fmt = d => `${d.getDate()}/${d.getMonth()+1}`;
+    b.textContent = `🔥 ${s.length} day${s.length>1?'s':''} — ${fmt(parseDate(s.start))} to ${fmt(parseDate(s.end))}`;
+    c.appendChild(b);
+  });
+}
+
+// ============================================================
+// RENDER — CHALLENGES
+// ============================================================
+function renderChallenges() {
+  const grid = el('challengesGrid'); grid.innerHTML = '';
+  CHALLENGES.forEach(ch => {
+    const completed = currentStreak >= ch.days || streakHistory.some(s=>s.length>=ch.days);
+    const active    = currentStreak > 0 && currentStreak < ch.days;
+    const progress  = Math.min(100,(currentStreak/ch.days)*100);
+    const metalColors = {
+      'Copper':'#b87333','Bronze':'#cd7f32','Silver':'#c0c0c0',
+      'Gold':'#f59e0b','Diamond':'#a5f3fc','Kohinoor':'#c084fc','Crown':'#fcd34d'
+    };
+    const metalColor = metalColors[ch.metal] || '#fff';
+    const card = document.createElement('div');
+    card.className = `challenge-card ${completed?'completed':''} ${active?'active':''}`;
+    card.innerHTML = `
+      <div class="challenge-icon">${ch.icon}</div>
+      <div class="challenge-name">${ch.label}</div>
+      <div class="challenge-bracket">(${ch.bracket})</div>
+      <div class="challenge-metal" style="color:${metalColor}">— ${ch.metal} —</div>
+      <div class="challenge-days">Day ${ch.days}</div>
+      <div class="challenge-progress"><div class="challenge-bar" style="width:${completed?100:progress}%"></div></div>
+      <div class="challenge-status">${completed?'✅ Unlocked!':active?`${currentStreak}/${ch.days} days`:'🔒 Locked'}</div>`;
+    grid.appendChild(card);
+  });
+}
+
+// ============================================================
+// RENDER — CALENDAR (THE MAIN FIX!)
+// ============================================================
+function renderCalendar() {
+  const grid = el('calendarGrid'); grid.innerHTML = '';
+
+  MONTHS.forEach((monthName, mi) => {
+    const mIdx       = MONTH_NUMS[mi];
+    const daysInMon  = new Date(YEAR, mIdx+1, 0).getDate();
+    const firstDay   = new Date(YEAR, mIdx, 1).getDay();
+
+    const block = document.createElement('div');
+    block.className = 'month-block';
+
+    // Month heading
+    const mHead = document.createElement('div');
+    mHead.className = 'month-name';
+    mHead.textContent = `${monthName} ${YEAR}`;
+    block.appendChild(mHead);
+
+    // Day-of-week headers
+    const hRow = document.createElement('div');
+    hRow.className = 'month-days-header';
+    DAY_NAMES.forEach(dn => {
+      const h = document.createElement('div');
+      h.className = 'day-header'; h.textContent = dn; hRow.appendChild(h);
+    });
+    block.appendChild(hRow);
+
+    // Days grid
+    const dGrid = document.createElement('div');
+    dGrid.className = 'month-days';
+
+    // Empty leading cells
+    for (let e=0; e<firstDay; e++) {
+      const emp = document.createElement('div');
+      emp.className = 'day-cell empty'; dGrid.appendChild(emp);
+    }
+
+    for (let d=1; d<=daysInMon; d++) {
+      const dateObj = new Date(YEAR, mIdx, d);
+      dateObj.setHours(0,0,0,0);
+      const ds     = fmtDate(dateObj);
+      const isToday  = ds === todayStr;
+      const isFuture = dateObj > today;
+      const isPast   = dateObj < today;
+      const status   = logs[ds]; // 'done' | 'missed' | undefined
+
+      const cell = document.createElement('div');
+
+      // *** KEY FIX: priority order matters ***
+      let cls = 'day-cell';
+      if (isToday) {
+        cls += ' today';
+        if (status === 'done')   cls += ' done';
+        else if (status === 'missed') cls += ' missed';
+      } else if (status === 'done') {
+        cls += ' done';
+      } else if (status === 'missed') {
+        cls += ' missed';
+      } else if (isFuture) {
+        cls += ' future';
+      } else if (isPast) {
+        // Past day with no log = treat as missed visually (faint red)
+        cls += ' past-no-log';
+      }
+
+      cell.className = cls;
+      cell.innerHTML = `
+        <span class="day-num">${d}</span>
+        <span class="day-name-small">${DAY_NAMES[dateObj.getDay()]}</span>
+        <span class="day-dot"></span>`;
+      cell.title = `${d} ${monthName} ${YEAR}${status?' — '+status.toUpperCase():''}`;
+      dGrid.appendChild(cell);
+    }
+
+    block.appendChild(dGrid);
+    grid.appendChild(block);
+  });
+}
+
+// ============================================================
+// RENDER — MOTIVATION
+// ============================================================
+function renderMotivation() {
+  const c = el('motivationTicker'); c.innerHTML = '';
+  [...MOTIVATIONS].sort(()=>Math.random()-.5).slice(0,5).forEach(line => {
+    const d = document.createElement('div');
+    d.className = 'mot-line'; d.textContent = line; c.appendChild(d);
+  });
+}
+
+// ============================================================
+// RENDER ALL
+// ============================================================
+function renderAll() {
+  computeStats();
+  renderHeader();
+  renderToday();
+  renderTriggers();
+  renderStreakHistory();
+  renderChallenges();
+  renderCalendar();
+  renderMotivation();
+}
+
+// ============================================================
+// CHECK IN
+// ============================================================
+async function checkIn(status) {
+  if (logs[todayStr]) return;
+  await saveLog(todayStr, status);
+  if (status === 'done') {
+    computeStats();
+    showToast('✅ Logged! You stayed strong! +10 pts', 4000);
+    CHALLENGES.forEach(ch => {
+      if (currentStreak === ch.days)
+        setTimeout(()=>showToast(`🏅 ${ch.label} Challenge Complete! +${ch.multiplier*10} bonus pts!`,4000),2000);
+    });
+    if (totalPoints >= 50) setTimeout(()=>showToast('⚡ MTV Bonus Active — Double Points!',3000),4500);
+    triggerConfetti();
+  } else {
+    showToast('💀 Logged. Tomorrow is a new battle. Rise again!', 4000);
+  }
+  renderAll();
+}
+
+// ============================================================
+// CONFETTI
+// ============================================================
+function triggerConfetti() {
+  for (let i=0; i<35; i++) {
+    setTimeout(()=>{
+      const p = document.createElement('div');
+      p.style.cssText=`position:fixed;left:${Math.random()*100}vw;top:${Math.random()*60+10}vh;width:8px;height:8px;background:${['#a855f7','#f59e0b','#10b981','#c084fc','#fcd34d'][Math.floor(Math.random()*5)]};border-radius:50%;pointer-events:none;z-index:9999;animation:confettiFall 1s ease-out forwards;`;
+      document.body.appendChild(p);
+      setTimeout(()=>p.remove(),1100);
+    }, i*40);
+  }
+}
+
+// ============================================================
+// TRIGGERS
+// ============================================================
+window.removeTrigger = async function(idx) {
+  triggers.splice(idx,1);
+  await saveTriggers();
+  renderTriggers();
+};
+
+// ============================================================
+// PARTICLES
+// ============================================================
+function initParticles() {
+  const c = el('particles');
+  for (let i=0;i<20;i++){
+    const p = document.createElement('div');
+    p.className='particle';
+    const sz = Math.random()*4+2;
+    p.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;animation-duration:${Math.random()*15+10}s;animation-delay:${Math.random()*10}s;background:${Math.random()>.5?'var(--purple-bright)':'var(--gold)'};`;
+    c.appendChild(p);
+  }
+}
+
+// ============================================================
+// MUSIC
+// ============================================================
+function toggleMusic() {
+  const a = el('bgMusic'), btn = el('musicToggle');
+  if (musicPlaying) {
+    a.pause(); btn.textContent='🎵'; btn.classList.remove('playing'); musicPlaying=false;
+  } else {
+    a.volume=0.25; a.play().catch(()=>{});
+    btn.textContent='🔇'; btn.classList.add('playing'); musicPlaying=true;
+  }
+}
+
+// ============================================================
+// ADMIN DASHBOARD
+// ============================================================
+async function showAdmin() {
+  showScreen('adminScreen');
+  el('allUsersTable').innerHTML = '<p class="loading-text">⏳ Loading warriors...</p>';
+  el('leaderboardPts').innerHTML = '';
+  el('leaderboardStreak').innerHTML = '';
+  el('adminStats').innerHTML = '';
+
+  try {
+    // Fetch all profiles
+    const { data: profiles, error } = await sb.from('bct_profiles').select('*');
+    if (error) throw error;
+
+    // Fetch all logs
+    const { data: allLogs } = await sb.from('bct_logs').select('*');
+
+    // Group logs by user
+    const logsByUser = {};
+    if (allLogs) allLogs.forEach(r => {
+      if (!logsByUser[r.user_id]) logsByUser[r.user_id] = {};
+      logsByUser[r.user_id][r.date] = r.status;
+    });
+
+    // Compute stats per user
+    const warriors = profiles.map(p => {
+      const uLogs = logsByUser[p.user_id] || {};
+      const stats = computeUserStats(p, uLogs);
+      return { ...p, ...stats, uLogs };
+    });
+
+    // Sort by points for leaderboard
+    const byPts    = [...warriors].sort((a,b)=>b.totalPoints-a.totalPoints);
+    const byStreak = [...warriors].sort((a,b)=>b.currentStreak-a.currentStreak);
+
+    // Admin stat cards
+    const totalDoneLogs = Object.values(logsByUser).reduce((acc,ul)=>acc+Object.values(ul).filter(v=>v==='done').length,0);
+    el('adminStats').innerHTML = `
+      <div class="admin-stat-card"><span class="admin-stat-num">${warriors.length}</span><span class="admin-stat-label">Total Warriors</span></div>
+      <div class="admin-stat-card"><span class="admin-stat-num">${byStreak[0]?.currentStreak||0}</span><span class="admin-stat-label">Highest Streak</span></div>
+      <div class="admin-stat-card"><span class="admin-stat-num">${byPts[0]?.totalPoints||0}</span><span class="admin-stat-label">Top Points</span></div>
+      <div class="admin-stat-card"><span class="admin-stat-num">${totalDoneLogs}</span><span class="admin-stat-label">Total Done Days</span></div>
+    `;
+
+    // Leaderboard — Points
+    renderLeaderboard('leaderboardPts', byPts, w=>`${w.totalPoints} pts`, w=>`${w.currentStreak} day streak`);
+    // Leaderboard — Streak
+    renderLeaderboard('leaderboardStreak', byStreak, w=>`${w.currentStreak} days`, w=>`${w.totalPoints} pts total`);
+
+    // All users table
+    renderAllUsersTable(warriors);
+
+  } catch(e) {
+    el('allUsersTable').innerHTML = `<p class="loading-text">❌ Error: ${e.message}</p>`;
+  }
+}
+
+function computeUserStats(prof, uLogs) {
+  // Current streak
+  let currentStreak = 0;
+  const chk = new Date(today);
+  while (true) {
+    const ds = fmtDate(chk);
+    if (uLogs[ds]==='done'){currentStreak++;chk.setDate(chk.getDate()-1);}
+    else break;
+  }
+
+  // Best streak (all time)
+  const doneDays = Object.entries(uLogs).filter(([,v])=>v==='done').map(([k])=>k).sort();
+  let bestStreak=0, runLen=0;
+  for(let i=0;i<doneDays.length;i++){
+    if(i===0||(parseDate(doneDays[i])-parseDate(doneDays[i-1]))/86400000!==1){runLen=1;}
+    else runLen++;
+    if(runLen>bestStreak)bestStreak=runLen;
+  }
+
+  // Total done / missed
+  const totalDone   = Object.values(uLogs).filter(v=>v==='done').length;
+  const totalMissed = Object.values(uLogs).filter(v=>v==='missed').length;
+
+  // Points
+  let totalPoints=0, run=0;
+  const allDates=[];
+  if(prof.startDate){
+    let d=parseDate(prof.startDate);
+    while(d<=today){allDates.push(fmtDate(d));d.setDate(d.getDate()+1);}
+  }
+  allDates.forEach(ds=>{
+    if(uLogs[ds]==='done'){
+      run++;
+      totalPoints+=10;
+    }else if(uLogs[ds]==='missed'){run=0;}
+  });
+
+  // Last active
+  const allLogged = Object.keys(uLogs).sort().reverse();
+  const lastActive = allLogged[0] || null;
+
+  return { currentStreak, bestStreak, totalDone, totalMissed, totalPoints, lastActive };
+}
+
+function renderLeaderboard(containerId, warriors, valFn, subFn) {
+  const c = el(containerId); c.innerHTML='';
+  if(!warriors.length){c.innerHTML='<p class="loading-text">No warriors yet</p>';return;}
+  warriors.slice(0,10).forEach((w,i)=>{
+    const row = document.createElement('div');
+    const rankClass = i===0?'top1':i===1?'top2':i===2?'top3':'';
+    row.className = `lb-row ${rankClass}`;
+  const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
+    const _badges=[{days:90,icon:'👑',label:'Brahmachari',metal:'Crown',bracket:'Powerful Man'},{days:30,icon:'✨',label:'Ojas',metal:'Kohinoor',bracket:'Powerful Aura'},{days:21,icon:'💎',label:'Vira',metal:'Diamond',bracket:'Disciplined Aura'},{days:15,icon:'🥇',label:'Dhira',metal:'Gold',bracket:'Positive Aura'},{days:7,icon:'🥈',label:'Tapasvi',metal:'Silver',bracket:'Discipline Forged'},{days:3,icon:'🏅',label:'Arambha',metal:'Bronze',bracket:'Stay Consistent'},{days:1,icon:'🪙',label:'Beej',metal:'Copper',bracket:'First Spark'}];
+    const _best=_badges.find(b=>w.bestStreak>=b.days);
+    const _badgeHtml=_best?`<div class="lb-badge">${_best.icon} ${_best.label} — ${_best.metal} <span style="color:var(--purple-glow)">(${_best.bracket})</span></div><div class="lb-badge" style="color:var(--muted)">🏆 Best Streak: ${w.bestStreak} days</div>`:'';
+    row.innerHTML = `
+      <div class="lb-rank">${medal}</div>
+      <div class="lb-avatar">${w.name.charAt(0).toUpperCase()}</div>
+      <div class="lb-info">
+        <div class="lb-name">${w.name}</div>
+        ${_badgeHtml}
+      </div>
+      <div>
+        <div class="lb-val">${valFn(w)}</div>
+        <div class="lb-sub">${subFn(w)}</div>
+      </div>`;
+    c.appendChild(row);
+  });
+}
+
+function renderAllUsersTable(warriors) {
+  const c = el('allUsersTable');
+  if (!warriors.length) { c.innerHTML='<p class="loading-text">No warriors yet</p>'; return; }
+
+  const rows = warriors.map((w,i) => {
+    const isActive = w.currentStreak > 0;
+    const dayNum   = w.startDate ? Math.max(1,daysFrom(w.startDate)) : '?';
+    const lastA    = w.lastActive ? w.lastActive.split('-').reverse().join('/') : 'Never';
+    return `
+      <tr>
+        <td><span class="status-dot ${isActive?'active':'inactive'}"></span>${w.name}</td>
+        <td style="color:var(--muted);font-size:.8rem"></td>
+        <td style="font-family:var(--font-d);color:var(--purple-glow)">${w.currentStreak}🔥</td>
+        <td style="font-family:var(--font-d);color:var(--gold)">${w.bestStreak}</td>
+        <td style="font-family:var(--font-d)">${w.totalPoints}</td>
+        <td><span class="tag-green">${w.totalDone} ✅</span></td>
+        <td><span class="tag-red">${w.totalMissed} 💀</span></td>
+        <td style="color:var(--muted);font-size:.8rem">Day ${dayNum}</td>
+        <td style="color:var(--muted);font-size:.8rem">${lastA}</td>
+      </tr>`;
+  }).join('');
+
+  c.innerHTML = `
+    <table class="users-table">
+      <thead><tr>
+        <th>Warrior</th><th>Email</th><th>Streak</th><th>Best</th>
+        <th>Points</th><th>Done</th><th>Missed</th><th>Journey</th><th>Last Active</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function showMain() { showScreen('mainScreen'); }
+function showClub() {
+  showScreen('clubScreen');
+  document.getElementById('zoomLink').href = CLUB_ZOOM_LINK;
+  initClubClock();
+  loadClubData();
+}
+
+// ============================================================
+// INIT
+// ============================================================
+async function init() {
+  initSB();
+  initParticles();
+
+  if (!sb) {
+    el('loginErr').textContent = '❌ Supabase failed to load. Check internet & reload.';
+    return;
+  }
+
+  // Check existing session
+  const { data: { session } } = await sb.auth.getSession();
+  if (session && session.user) {
+    await onLogin(session.user);
+  } else {
+    showScreen('authScreen');
+    el('regStartDate').value = todayStr;
+  }
+
+  // Auth listeners
+  el('loginBtn').addEventListener('click', doLogin);
+  el('registerBtn').addEventListener('click', doRegister);
+  el('logoutBtn').addEventListener('click', doLogout);
+  el('loginPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+  el('regStartDate').value = todayStr;
+
+  // Check-in
+  el('btnDone').addEventListener('click', ()=>checkIn('done'));
+  el('btnMissed').addEventListener('click', ()=>{
+    if(confirm('Sure? This will break your streak.')) checkIn('missed');
+  });
+
+  // Triggers
+  el('addTriggerBtn').addEventListener('click', async()=>{
+    const val = el('triggerInput').value.trim();
+    if(!val) return;
+    if(triggers.includes(val)){showToast('Already added!');return;}
+    triggers.push(val);
+    await saveTriggers();
+    el('triggerInput').value='';
+    renderTriggers();
+    showToast(`⚠️ Trigger: "${val}"`);
+  });
+  el('triggerInput').addEventListener('keydown',e=>{if(e.key==='Enter')el('addTriggerBtn').click();});
+
+  // Music
+  el('musicToggle').addEventListener('click', toggleMusic);
+
+  // Motivation refresh
+  setInterval(renderMotivation, 30000);
+}
+
+document.addEventListener('DOMContentLoaded', ()=>setTimeout(init,150));
+
+
+
+
+
+
+// ============================================================
+// 5AM CLUB MODULE
+// ============================================================
+
+const CLUB_ZOOM_LINK = 'https://meet.google.com/qcm-njtw-cyq'; // <-- apna link daal
+
+// ---- Supabase table: club_checkins
+// columns: id, user_id, checkin_date (date), checkin_time (text HH:MM), points (int)
+
+let clubActiveTab = 'streak';
+
+function showClub() {
+  document.getElementById('mainScreen').style.display = 'none';
+  document.getElementById('adminScreen').style.display = 'none';
+  document.getElementById('clubScreen').style.display = 'block';
+  document.getElementById('zoomLink').href = CLUB_ZOOM_LINK;
+  initClubClock();
+  loadClubData();
+}
+
+function showMain() {
+  document.getElementById('clubScreen').style.display = 'none';
+  document.getElementById('adminScreen').style.display = 'none';
+  document.getElementById('mainScreen').style.display = 'block';
+}
+
+// Live clock
+let clubClockInterval = null;
+function initClubClock() {
+  if (clubClockInterval) clearInterval(clubClockInterval);
+  updateClubClock();
+  clubClockInterval = setInterval(updateClubClock, 1000);
+}
+
+function updateClubClock() {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const ss = String(now.getSeconds()).padStart(2,'0');
+  const timeEl = document.getElementById('clubTime');
+  if (timeEl) timeEl.textContent = `${hh}:${mm}:${ss}`;
+
+  const h = now.getHours(), m = now.getMinutes();
+  const totalMins = h * 60 + m;
+  const openMins  = 4 * 60 + 45;  // 4:45 AM
+  const closeMins = 5 * 60 + 30;  // 5:30 AM
+  const fiveMins  = 5 * 60;       // 5:00 AM
+
+  const statusEl = document.getElementById('clubWindowStatus');
+  if (statusEl) {
+    if (totalMins < openMins)       statusEl.textContent = 'Window opens at 4:45 AM';
+    else if (totalMins < fiveMins)  statusEl.textContent = '✅ Window Open — Join early for full 30 pts!';
+    else if (totalMins < closeMins) {
+      const late = totalMins - fiveMins;
+      statusEl.textContent = `⏱ ${late} min late — You'll earn ${30 - late} pts`;
+    }
+    else statusEl.textContent = '🔒 Window closed for today';
+  }
+
+  updateClubButtons(totalMins, openMins, closeMins);
+}
+
+async function updateClubButtons(totalMins, openMins, closeMins) {
+  const joinBtn    = document.getElementById('clubJoinBtn');
+  const closedMsg  = document.getElementById('clubClosedMsg');
+  const doneMsg    = document.getElementById('clubDoneMsg');
+  if (!joinBtn) return;
+
+  const todayStr = getTodayStr();
+  const alreadyDone = await hasClubCheckinToday(todayStr);
+
+  joinBtn.style.display   = 'none';
+  closedMsg.style.display = 'none';
+  doneMsg.style.display   = 'none';
+
+  if (alreadyDone) {
+    doneMsg.style.display = 'block';
+  } else if (totalMins >= openMins && totalMins < closeMins) {
+    joinBtn.style.display = 'block';
+  } else if (totalMins >= closeMins) {
+    closedMsg.style.display = 'block';
+  }
+  // before 4:45 — all hidden, status text says window opens at 4:45
+}
+
+async function hasClubCheckinToday(dateStr) {
+  if (!currentUser) return false;
+  const { data } = await supabase
+    .from('club_checkins')
+    .select('id')
+    .eq('user_id', currentUser.id)
+    .eq('checkin_date', dateStr)
+    .maybeSingle();
+  return !!data;
+}
+
+async function clubCheckIn() {
+  if (!currentUser) return;
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes();
+  const totalMins  = h * 60 + m;
+  const openMins   = 4 * 60 + 45;
+  const closeMins  = 5 * 60 + 30;
+  const fiveMins   = 5 * 60;
+
+  if (totalMins < openMins || totalMins >= closeMins) {
+    showToast('⏰ Check-in window is closed!'); return;
+  }
+
+  const late   = Math.max(0, totalMins - fiveMins);
+  const points = Math.max(0, 30 - late);
+  const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  const dateStr = getTodayStr();
+
+  // Check duplicate
+  const already = await hasClubCheckinToday(dateStr);
+  if (already) { showToast('Already checked in today!'); return; }
+
+  const joinBtn = document.getElementById('clubJoinBtn');
+  if (joinBtn) { joinBtn.disabled = true; joinBtn.textContent = 'Saving...'; }
+
+  const { error } = await sb.from('club_checkins').insert({
+    user_id: currentUser.id,
+    checkin_date: dateStr,
+    checkin_time: timeStr,
+    points: points
+  });
+
+  if (error) {
+    showToast('❌ Error saving — try again');
+    if (joinBtn) { joinBtn.disabled = false; joinBtn.textContent = '🌅 JOIN 5AM CLUB'; }
+    return;
+  }
+
+  showToast(`🌅 Checked in at ${timeStr} — +${points} pts!`);
+  loadClubData();
+
+  // Open zoom link
+  setTimeout(() => { window.open(CLUB_ZOOM_LINK, '_blank'); }, 800);
+}
+
+async function loadClubData() {
+  if (!currentUser) return;
+  await Promise.all([
+    loadMyClubHistory(),
+    loadClubLeaderboard()
+  ]);
+}
+
+async function loadMyClubHistory() {
+  const { data } = await supabase
+    .from('club_checkins')
+    .select('checkin_date, checkin_time, points')
+    .eq('user_id', currentUser.id)
+    .order('checkin_date', { ascending: false })
+    .limit(30);
+
+  // Compute streak
+  const dates = (data || []).map(r => r.checkin_date).sort((a,b) => b.localeCompare(a));
+  let streak = 0;
+  const today = getTodayStr();
+  let check = today;
+  for (let i = 0; i < 100; i++) {
+    if (dates.includes(check)) {
+      streak++;
+      check = offsetDate(check, -1);
+    } else { break; }
+  }
+
+  const streakEl = document.getElementById('clubStreak');
+  if (streakEl) streakEl.textContent = streak;
+
+  // Today's points
+  const todayRec = (data || []).find(r => r.checkin_date === today);
+  const ptsEl = document.getElementById('clubPtsToday');
+  if (ptsEl) ptsEl.textContent = todayRec ? `${todayRec.points} pts` : '—';
+
+  // History chips
+  const grid = document.getElementById('clubMyHistory');
+  if (!grid) return;
+  grid.innerHTML = '';
+  (data || []).forEach(r => {
+    const chip = document.createElement('div');
+    chip.className = 'club-hist-chip present';
+    chip.innerHTML = `🌅 ${formatDateShort(r.checkin_date)} <span style="color:var(--gold)">${r.checkin_time}</span> <strong>+${r.points}</strong>`;
+    grid.appendChild(chip);
+  });
+  if (!data || data.length === 0) {
+    grid.innerHTML = '<p style="color:var(--muted);font-style:italic">No check-ins yet — see you at 5AM! 🌅</p>';
+  }
+}
+
+async function loadClubLeaderboard() {
+  const { data } = await supabase
+    .from('club_checkins')
+    .select('user_id, checkin_date, checkin_time, points');
+
+  if (!data) return;
+
+  // Group by user
+  const users = {};
+  data.forEach(r => {
+    if (!users[r.user_id]) users[r.user_id] = { checkins: [] };
+    users[r.user_id].checkins.push(r);
+  });
+
+  // Get names
+  const { data: profiles } = await supabase
+    .from('users')
+    .select('id, name');
+
+  const nameMap = {};
+  (profiles || []).forEach(p => { nameMap[p.id] = p.name; });
+
+  const today = getTodayStr();
+
+  // Build rows
+  const rows = Object.entries(users).map(([uid, u]) => {
+    const dates = [...new Set(u.checkins.map(c => c.checkin_date))].sort((a,b) => b.localeCompare(a));
+    // streak
+    let streak = 0, check = today;
+    for (let i = 0; i < 200; i++) {
+      if (dates.includes(check)) { streak++; check = offsetDate(check, -1); }
+      else break;
+    }
+    // total points
+    const totalPts = u.checkins.reduce((s, c) => s + (c.points || 0), 0);
+    // today's time
+    const todayRec = u.checkins.find(c => c.checkin_date === today);
+    const todayTime = todayRec ? todayRec.checkin_time : null;
+    const todayPts  = todayRec ? todayRec.points : 0;
+
+    return { uid, name: nameMap[uid] || 'Warrior', streak, totalPts, todayTime, todayPts };
+  });
+
+  renderClubLeaderboard(rows);
+}
+
+function switchClubTab(tab) {
+  clubActiveTab = tab;
+  document.getElementById('tabLbStreak').classList.toggle('active', tab === 'streak');
+  document.getElementById('tabLbPts').classList.toggle('active', tab === 'pts');
+  document.getElementById('tabLbTime').classList.toggle('active', tab === 'time');
+
+  // Re-render with existing data — reload
+  loadClubLeaderboard();
+}
+
+function renderClubLeaderboard(rows) {
+  const container = document.getElementById('clubLeaderboard');
+  if (!container) return;
+  container.innerHTML = '';
+
+  let sorted;
+  if (clubActiveTab === 'streak') {
+    sorted = [...rows].sort((a,b) => b.streak - a.streak || b.totalPts - a.totalPts);
+  } else if (clubActiveTab === 'pts') {
+    sorted = [...rows].sort((a,b) => b.totalPts - a.totalPts || b.streak - a.streak);
+  } else {
+    // Earliest today — only those who checked in today
+    sorted = [...rows]
+      .filter(r => r.todayTime)
+      .sort((a,b) => a.todayTime.localeCompare(b.todayTime));
+    if (sorted.length === 0) {
+      container.innerHTML = '<p style="color:var(--muted);padding:1rem;font-style:italic">No one has checked in today yet 👀</p>';
+      return;
+    }
+  }
+
+  sorted.forEach((r, i) => {
+    const rankClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
+    const rankEmoji = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`;
+    const initial   = (r.name || 'W')[0].toUpperCase();
+
+    let rightTop, rightSub;
+    if (clubActiveTab === 'streak') {
+      rightTop = `${r.streak} days`;
+      rightSub = `${r.totalPts} pts total`;
+    } else if (clubActiveTab === 'pts') {
+      rightTop = `${r.totalPts} pts`;
+      rightSub = `${r.streak} day streak`;
+    } else {
+      rightTop = r.todayTime || '—';
+      rightSub = `+${r.todayPts} pts today`;
+    }
+
+    const row = document.createElement('div');
+    row.className = `lb-row ${rankClass}`;
+    row.innerHTML = `
+      <div class="lb-rank">${rankEmoji}</div>
+      <div class="lb-avatar">${initial}</div>
+      <div class="lb-info">
+        <div class="lb-name">${r.name}</div>
+        <div class="lb-club-pts">${r.uid === currentUser?.id ? '(You)' : ''}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="lb-club-time">${rightTop}</div>
+        <div class="lb-club-pts">${rightSub}</div>
+      </div>`;
+    container.appendChild(row);
+  });
+}
+
+// ---- Helpers ----
+function getTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function offsetDate(dateStr, days) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function formatDateShort(dateStr) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-IN', { day:'numeric', month:'short' });
+}
