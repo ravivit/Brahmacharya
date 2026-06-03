@@ -18,6 +18,7 @@
 <body>
 
 <audio id="bgMusic" loop>
+  <source src="https://cdn.freesound.org/previews/398/398937_5121236-lq.mp3" type="audio/mpeg" />
   <source src="https://cdn.freesound.org/previews/612/612458_5674468-lq.mp3" type="audio/mpeg" />
 </audio>
 
@@ -94,6 +95,8 @@
           <h1 class="warrior-name" id="warriorName"></h1>
          <p class="warrior-goal" id="warriorGoal"></p>
 <button class="btn-join-club" onclick="showClub()">🌅 Join 5AM Club</button>
+
+
         </div>
       </div>
       <div class="header-right">
@@ -103,7 +106,11 @@
 <div class="stat-pill"><span class="stat-label">🏆 Best</span><span class="stat-val" id="headerBest">0</span></div>
         <button class="btn-nav" onclick="showClub()" title="5AM Club">🌅</button>
        <button class="btn-nav-text" id="adminBtn" onclick="showAdmin()">🏆 Leaderboard</button>
-        <button class="btn-nav" id="logoutBtn" title="Logout">🚪</button>
+ 
+<button class="btn-nav chat-notify-btn" onclick="showChat()" title="Brotherhood Chat" style="font-size:1.2rem">
+  💬<span class="chat-unread-dot" id="chatUnreadDot" style="display:none"></span>
+</button>
+<button class="btn-nav" id="logoutBtn" title="Logout">🚪</button>
       </div>
     </header>
 
@@ -146,21 +153,45 @@
     <!-- POINTS -->
     <section class="card-section">
       <h3 class="section-title">💎 Points System</h3>
+      <!-- Buddha + peaceful quote -->
+      <div class="buddha-banner">
+        <div class="buddha-statue">🧘</div>
+        <div class="buddha-text">
+          <div class="buddha-quote">"He who conquers himself is the greatest warrior."</div>
+          <div class="buddha-sub">— Brahmacharya is the path to liberation</div>
+        </div>
+      </div>
       <div class="points-grid">
         <div class="point-card"><span class="pc-label">Daily</span><span class="pc-val">+10 pts</span></div>
-        <div class="point-card"><span class="pc-label">3-Day Bonus</span><span class="pc-val">+20 pts</span></div>
-        <div class="point-card"><span class="pc-label">7-Day Bonus</span><span class="pc-val">+30 pts</span></div>
-        <div class="point-card"><span class="pc-label">15-Day Bonus</span><span class="pc-val">+40 pts</span></div>
-        <div class="point-card"><span class="pc-label">21-Day Bonus</span><span class="pc-val">+50 pts</span></div>
-        <div class="point-card"><span class="pc-label">30-Day Bonus</span><span class="pc-val">+60 pts</span></div>
-        <div class="point-card"><span class="pc-label">90-Day Bonus</span><span class="pc-val">+90 pts</span></div>
-        <div class="point-card highlight"><span class="pc-label">MTV 50+ Pts</span><span class="pc-val">2× Points</span></div>
+        <div class="point-card milestone-card"><span class="pc-label">3-Day (Lv1)</span><span class="pc-val">+30 pts<span class="pc-bonus">+30 bonus = 60 total</span></span></div>
+        <div class="point-card milestone-card"><span class="pc-label">7-Day (Lv2)</span><span class="pc-val">+70 pts<span class="pc-bonus">+140 bonus = 210 total</span></span></div>
+        <div class="point-card milestone-card"><span class="pc-label">15-Day (Lv3)</span><span class="pc-val">+150 pts<span class="pc-bonus">+450 bonus = 600 total</span></span></div>
+        <div class="point-card milestone-card"><span class="pc-label">21-Day (Lv4)</span><span class="pc-val">+210 pts<span class="pc-bonus">+840 bonus</span></span></div>
+        <div class="point-card milestone-card"><span class="pc-label">30-Day (Lv5)</span><span class="pc-val">+300 pts<span class="pc-bonus">+1500 bonus</span></span></div>
+        <div class="point-card milestone-card"><span class="pc-label">90-Day (Lv6)</span><span class="pc-val">+900 pts<span class="pc-bonus">+5400 bonus</span></span></div>
+        <div class="point-card highlight"><span class="pc-label">500+ Pts</span><span class="pc-val">MTV 2× Mode</span></div>
+      </div>
+      <!-- Streak Redemption -->
+      <div class="redeem-section">
+        <div class="redeem-info">
+          <span class="redeem-icon">🔄</span>
+          <div>
+            <div class="redeem-title">Streak Redemption</div>
+            <div class="redeem-desc">Spend <strong>500 pts</strong> → Recover 1 missed day → Streak continues! (calendar pe 🔄 gold dikhega)</div>
+          </div>
+        </div>
+        <button class="btn-redeem" onclick="redeemStreak()">🔄 Redeem (500 pts)</button>
       </div>
     </section>
 
     <!-- CALENDAR -->
     <section class="card-section">
-      <h3 class="section-title">📅 6-Month Journey — June to December 2025</h3>
+      <h3 class="section-title">📅 My Journey Calendar</h3>
+      <div class="calendar-nav">
+        <button class="cal-nav-btn" onclick="calPrevMonth()">‹ Prev</button>
+        <span class="cal-nav-title" id="calNavTitle"></span>
+        <button class="cal-nav-btn" onclick="calNextMonth()">Next ›</button>
+      </div>
       <div class="calendar-grid" id="calendarGrid"></div>
     </section>
 
@@ -280,6 +311,73 @@
 
   </div>
 </div>
+
+<!-- ==================== BROTHERHOOD CHAT ==================== -->
+<div class="screen" id="chatScreen" style="display:none">
+  <div class="app" style="padding:0;max-width:100%;height:100vh;display:flex;flex-direction:column">
+
+    <!-- CHAT HEADER -->
+    <div class="chat-header">
+      <div class="chat-header-left">
+        <button class="chat-back-btn" onclick="showMain()">←</button>
+        <div class="chat-header-avatar" id="chatHeaderAvatar">⚔️</div>
+        <div>
+          <div class="chat-header-title" id="chatHeaderTitle">Brotherhood Chat</div>
+          <div class="chat-header-sub" id="chatHeaderSub">Warriors talk here</div>
+        </div>
+      </div>
+      <div class="chat-header-tabs">
+        <button class="chat-tab-btn active" id="tabGroup" onclick="switchChatTab('group')">👥 Group</button>
+        <button class="chat-tab-btn" id="tabDM" onclick="switchChatTab('dm')">✉️ DMs</button>
+      </div>
+    </div>
+
+    <!-- GROUP CHAT PANEL -->
+    <div id="groupChatPanel" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+      <div class="chat-pinned-bar" id="chatPinned" style="display:none">
+        <span style="font-size:.85rem">📌</span>
+        <span id="pinnedText" style="flex:1;font-size:.82rem"></span>
+      </div>
+      <div class="chat-body" id="chatMessages"></div>
+      <div class="chat-input-bar">
+        <label class="chat-img-btn" title="Send Image">
+          📷
+          <input type="file" id="groupImgInput" accept="image/*" style="display:none" onchange="sendGroupImage(this)" />
+        </label>
+        <input type="text" id="chatInput" placeholder="Message..." maxlength="300" />
+        <button class="chat-send-btn" onclick="sendGroupMessage()">➤</button>
+      </div>
+    </div>
+
+    <!-- DM PANEL -->
+    <div id="dmPanel" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+      <!-- User List -->
+      <div id="dmUserList" style="flex:1;overflow-y:auto;padding:1rem">
+        <p class="section-title" style="margin-bottom:1rem">⚔️ Warriors — Tap to DM</p>
+        <div id="dmUsersList"></div>
+      </div>
+      <!-- Conversation -->
+      <div id="dmConversation" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+        <div class="chat-dm-topbar">
+          <button class="chat-back-btn" onclick="closeDMConvo()">←</button>
+          <div class="chat-header-avatar" id="dmWithAvatar">W</div>
+          <div class="chat-header-title" id="dmWithName">Warrior</div>
+        </div>
+        <div class="chat-body" id="dmMessages"></div>
+        <div class="chat-input-bar">
+          <label class="chat-img-btn" title="Send Image">
+            📷
+            <input type="file" id="dmImgInput" accept="image/*" style="display:none" onchange="sendDMImage(this)" />
+          </label>
+          <input type="text" id="dmInput" placeholder="Message..." maxlength="300" />
+          <button class="chat-send-btn" onclick="sendDM()">➤</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>

@@ -57,6 +57,7 @@ let streakHistory   = [];
 let currentStreak   = 0;
 let totalPoints     = 0;
 let musicPlaying    = false;
+let redemptions     = {};  // { 'YYYY-MM-DD': true } — redeemed days
 
 const today    = new Date(); today.setHours(0,0,0,0);
 const todayStr = fmtDate(today);
@@ -80,7 +81,7 @@ function showToast(msg, dur=3000) {
   setTimeout(() => t.classList.remove('show'), dur);
 }
 function showScreen(id) {
-  ['authScreen','mainScreen','adminScreen','clubScreen'].forEach(s => {
+['authScreen','mainScreen','adminScreen','clubScreen','chatScreen'].forEach(s => {
     el(s).style.display = s === id ? 'block' : 'none';
   });
 }
@@ -178,6 +179,13 @@ async function onLogin(user) {
   const { data: logRows } = await sb.from('bct_logs').select('*').eq('user_id', user.id);
   logs = {};
   if (logRows) logRows.forEach(r => logs[r.date] = r.status);
+
+  // Derive redemptions from logs (no extra query needed)
+  redemptions = {};
+  Object.entries(logs).forEach(([date, status]) => {
+    if (status === 'redeemed') redemptions[date] = true;
+  });
+
   // Load triggers
   const { data: tRow } = await sb.from('bct_triggers').select('*').eq('user_id', user.id).maybeSingle();
   triggers = tRow && tRow.triggers ? tRow.triggers : [];
@@ -202,15 +210,16 @@ async function saveTriggers() {
 // COMPUTE STATS
 // ============================================================
 function computeStats() {
-  const doneDays = Object.entries(logs).filter(([,v])=>v==='done').map(([k])=>k).sort();
+  const doneDays = Object.entries(logs).filter(([,v])=>v==='done'||v==='redeemed').map(([k])=>k).sort();
 
-  // Current streak — walk back from today
+  // Current streak — walk back from today (redeemed days count as done)
   currentStreak = 0;
   const chk = new Date(today);
   while (true) {
     const ds = fmtDate(chk);
-    if (logs[ds] === 'done') { currentStreak++; chk.setDate(chk.getDate()-1); }
-    else break;
+    if (logs[ds] === 'done' || logs[ds] === 'redeemed' || redemptions[ds]) {
+      currentStreak++; chk.setDate(chk.getDate()-1);
+    } else break;
   }
 
   // All streaks history
@@ -225,7 +234,7 @@ function computeStats() {
     streakHistory.push({ start:sStart, end:doneDays[doneDays.length-1], length:sLen });
   }
 
-  // Points
+  // Points — with level multiplier bonuses
   totalPoints = 0;
   let run = 0;
   const allDates = [];
@@ -233,12 +242,24 @@ function computeStats() {
     let d = parseDate(profile.startDate);
     while (d <= today) { allDates.push(fmtDate(d)); d.setDate(d.getDate()+1); }
   }
+
+  // Milestone bonuses: { days: multiplier }
+  const MILESTONES = { 3:1, 7:2, 15:3, 21:4, 30:5, 90:6 };
+
   allDates.forEach(ds => {
-    if (logs[ds] === 'done') {
+    if (logs[ds] === 'done' || redemptions[ds]) {
       run++;
       totalPoints += 10;
+      // Milestone bonus
+      if (MILESTONES[run] !== undefined) {
+        totalPoints += run * 10 * MILESTONES[run];
+      }
     } else if (logs[ds] === 'missed') { run = 0; }
   });
+
+  // Deduct 500 pts for each streak redemption used
+  const redemptionCount = Object.keys(redemptions).length;
+  totalPoints = Math.max(0, totalPoints - redemptionCount * 500);
 }
 
 // ============================================================
@@ -341,82 +362,107 @@ function renderChallenges() {
 // ============================================================
 // RENDER — CALENDAR (THE MAIN FIX!)
 // ============================================================
+// Calendar state — current viewed month
+let calViewYear  = new Date().getFullYear();
+let calViewMonth = new Date().getMonth(); // 0-based
+
+function calPrevMonth() {
+  calViewMonth--;
+  if (calViewMonth < 0) { calViewMonth = 11; calViewYear--; }
+  renderCalendar();
+}
+
+function calNextMonth() {
+  calViewMonth++;
+  if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; }
+  renderCalendar();
+}
+
 function renderCalendar() {
-  const grid = el('calendarGrid'); grid.innerHTML = '';
+  const grid = el('calendarGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
 
-  MONTHS.forEach((monthName, mi) => {
-    const mIdx       = MONTH_NUMS[mi];
-    const daysInMon  = new Date(YEAR, mIdx+1, 0).getDate();
-    const firstDay   = new Date(YEAR, mIdx, 1).getDay();
+  const mIdx      = calViewMonth;
+  const yr        = calViewYear;
+  const monthName = new Date(yr, mIdx, 1).toLocaleString('en-IN', { month: 'long' });
+  const daysInMon = new Date(yr, mIdx+1, 0).getDate();
+  const firstDay  = new Date(yr, mIdx, 1).getDay();
 
-    const block = document.createElement('div');
-    block.className = 'month-block';
+  // Update nav title
+  const navTitle = document.getElementById('calNavTitle');
+  if (navTitle) navTitle.textContent = `${monthName} ${yr}`;
 
-    // Month heading
-    const mHead = document.createElement('div');
-    mHead.className = 'month-name';
-    mHead.textContent = `${monthName} ${YEAR}`;
-    block.appendChild(mHead);
+  // Disable prev if before June 2026 (start)
+  // Allow navigation freely
 
-    // Day-of-week headers
-    const hRow = document.createElement('div');
-    hRow.className = 'month-days-header';
-    DAY_NAMES.forEach(dn => {
-      const h = document.createElement('div');
-      h.className = 'day-header'; h.textContent = dn; hRow.appendChild(h);
-    });
-    block.appendChild(hRow);
+  const block = document.createElement('div');
+  block.className = 'month-block';
 
-    // Days grid
-    const dGrid = document.createElement('div');
-    dGrid.className = 'month-days';
+  // Month heading
+  const mHead = document.createElement('div');
+  mHead.className = 'month-name';
+  mHead.textContent = `${monthName} ${yr}`;
+  block.appendChild(mHead);
 
-    // Empty leading cells
-    for (let e=0; e<firstDay; e++) {
-      const emp = document.createElement('div');
-      emp.className = 'day-cell empty'; dGrid.appendChild(emp);
-    }
-
-    for (let d=1; d<=daysInMon; d++) {
-      const dateObj = new Date(YEAR, mIdx, d);
-      dateObj.setHours(0,0,0,0);
-      const ds     = fmtDate(dateObj);
-      const isToday  = ds === todayStr;
-      const isFuture = dateObj > today;
-      const isPast   = dateObj < today;
-      const status   = logs[ds]; // 'done' | 'missed' | undefined
-
-      const cell = document.createElement('div');
-
-      // *** KEY FIX: priority order matters ***
-      let cls = 'day-cell';
-      if (isToday) {
-        cls += ' today';
-        if (status === 'done')   cls += ' done';
-        else if (status === 'missed') cls += ' missed';
-      } else if (status === 'done') {
-        cls += ' done';
-      } else if (status === 'missed') {
-        cls += ' missed';
-      } else if (isFuture) {
-        cls += ' future';
-      } else if (isPast) {
-        // Past day with no log = treat as missed visually (faint red)
-        cls += ' past-no-log';
-      }
-
-      cell.className = cls;
-      cell.innerHTML = `
-        <span class="day-num">${d}</span>
-        <span class="day-name-small">${DAY_NAMES[dateObj.getDay()]}</span>
-        <span class="day-dot"></span>`;
-      cell.title = `${d} ${monthName} ${YEAR}${status?' — '+status.toUpperCase():''}`;
-      dGrid.appendChild(cell);
-    }
-
-    block.appendChild(dGrid);
-    grid.appendChild(block);
+  // Day-of-week headers
+  const hRow = document.createElement('div');
+  hRow.className = 'month-days-header';
+  DAY_NAMES.forEach(dn => {
+    const h = document.createElement('div');
+    h.className = 'day-header'; h.textContent = dn; hRow.appendChild(h);
   });
+  block.appendChild(hRow);
+
+  // Days grid
+  const dGrid = document.createElement('div');
+  dGrid.className = 'month-days';
+
+  // Empty leading cells
+  for (let e=0; e<firstDay; e++) {
+    const emp = document.createElement('div');
+    emp.className = 'day-cell empty'; dGrid.appendChild(emp);
+  }
+
+  for (let d=1; d<=daysInMon; d++) {
+    const dateObj = new Date(yr, mIdx, d);
+    dateObj.setHours(0,0,0,0);
+    const ds      = fmtDate(dateObj);
+    const isToday  = ds === todayStr;
+    const isFuture = dateObj > today;
+    const isPast   = dateObj < today;
+    const status   = logs[ds];
+
+    const cell = document.createElement('div');
+    let cls = 'day-cell';
+    if (isToday) {
+      cls += ' today';
+      if (status === 'done') cls += ' done';
+      else if (status === 'missed') cls += ' missed';
+      else if (status === 'redeemed' || redemptions[ds]) cls += ' redeemed';
+    } else if (status === 'redeemed' || redemptions[ds]) {
+      cls += ' redeemed';
+    } else if (status === 'done') {
+      cls += ' done';
+    } else if (status === 'missed') {
+      cls += ' missed';
+    } else if (isFuture) {
+      cls += ' future';
+    } else if (isPast) {
+      cls += ' past-no-log';
+    }
+
+    cell.className = cls;
+    cell.innerHTML = `
+      <span class="day-num">${d}</span>
+      <span class="day-name-small">${DAY_NAMES[dateObj.getDay()]}</span>
+      <span class="day-dot"></span>`;
+    cell.title = `${d} ${monthName} ${yr}${status?' — '+status.toUpperCase():''}`;
+    dGrid.appendChild(cell);
+  }
+
+  block.appendChild(dGrid);
+  grid.appendChild(block);
 }
 
 // ============================================================
@@ -466,8 +512,41 @@ async function checkIn(status) {
 }
 
 // ============================================================
-// CONFETTI
+// STREAK REDEMPTION — 500 pts = 1 missed day recover
 // ============================================================
+async function redeemStreak() {
+  // Find the most recent missed day (yesterday or before)
+  const missedDays = Object.entries(logs)
+    .filter(([,v]) => v === 'missed')
+    .map(([k]) => k)
+    .sort()
+    .reverse();
+
+  if (!missedDays.length) { showToast('❌ No missed day to redeem!'); return; }
+
+  const targetDay = missedDays[0]; // most recent missed
+
+  // Already redeemed?
+  if (redemptions[targetDay]) { showToast('❌ Already redeemed this day!'); return; }
+
+  computeStats(); // ensure totalPoints is fresh
+  if (totalPoints < 500) {
+    showToast(`❌ Need 500 pts! You have ${totalPoints} pts.`); return;
+  }
+
+  if (!confirm(`Spend 500 points to recover ${targetDay}? Your streak will continue!`)) return;
+
+  // Save as redeemed in logs
+  await sb.from('bct_logs').upsert(
+    { user_id: currentUser.id, date: targetDay, status: 'redeemed' },
+    { onConflict: 'user_id,date' }
+  );
+  logs[targetDay] = 'redeemed';
+  redemptions[targetDay] = true;
+
+  showToast('🔄 Streak recovered! 500 pts spent. Day marked gold ✨', 4000);
+  renderAll();
+}
 function triggerConfetti() {
   for (let i=0; i<35; i++) {
     setTimeout(()=>{
@@ -596,8 +675,9 @@ function computeUserStats(prof, uLogs) {
   const totalDone   = Object.values(uLogs).filter(v=>v==='done').length;
   const totalMissed = Object.values(uLogs).filter(v=>v==='missed').length;
 
-  // Points
+  // Points — with level multiplier bonuses
   let totalPoints=0, run=0;
+  const MILESTONES = { 3:1, 7:2, 15:3, 21:4, 30:5, 90:6 };
   const allDates=[];
   if(prof.startDate){
     let d=parseDate(prof.startDate);
@@ -607,6 +687,7 @@ function computeUserStats(prof, uLogs) {
     if(uLogs[ds]==='done'){
       run++;
       totalPoints+=10;
+      if(MILESTONES[run]!==undefined) totalPoints += run*10*MILESTONES[run];
     }else if(uLogs[ds]==='missed'){run=0;}
   });
 
@@ -1063,3 +1144,470 @@ function formatDateShort(dateStr) {
   const d = new Date(dateStr);
   return d.toLocaleDateString('en-IN', { day:'numeric', month:'short' });
 }
+
+
+
+// ============================================================
+// BROTHERHOOD CHAT MODULE v2
+// ============================================================
+
+const ADMIN_ID = 'YOUR_SUPABASE_USER_ID_HERE'; // apna ID daal
+const SENDER_COLORS = ['sender-color-0','sender-color-1','sender-color-2','sender-color-3','sender-color-4','sender-color-5','sender-color-6','sender-color-7'];
+const senderColorMap = {};
+
+function getSenderColor(userId) {
+  if (!senderColorMap[userId]) {
+    const keys = Object.keys(senderColorMap);
+    senderColorMap[userId] = SENDER_COLORS[keys.length % SENDER_COLORS.length];
+  }
+  return senderColorMap[userId];
+}
+
+let currentChatTab = 'group';
+let dmWithUserId = null;
+let dmWithUserName = null;
+let groupChatSub = null;
+let dmChatSub = null;
+let lastMsgDate = null;
+
+function showChat() {
+  showScreen('chatScreen');
+  currentChatTab = null; // force reload
+  switchChatTab('group');
+}
+
+function switchChatTab(tab) {
+  currentChatTab = tab;
+  document.getElementById('tabGroup').classList.toggle('active', tab === 'group');
+  document.getElementById('tabDM').classList.toggle('active', tab === 'dm');
+
+  const gp = document.getElementById('groupChatPanel');
+  const dp = document.getElementById('dmPanel');
+  if (gp) gp.style.display = tab === 'group' ? 'flex' : 'none';
+  if (dp) dp.style.display = tab === 'dm' ? 'flex' : 'none';
+
+  if (tab === 'group') {
+    loadGroupMessages();
+    subscribeGroupChat();
+  }
+  if (tab === 'dm') {
+    loadDMUsers();
+  }
+}
+
+// ---- DATE DIVIDER ----
+function maybeAddDateDivider(box, dateStr) {
+  if (dateStr !== lastMsgDate) {
+    lastMsgDate = dateStr;
+    const div = document.createElement('div');
+    div.className = 'chat-date-divider';
+    const d = new Date(dateStr);
+    div.textContent = d.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+    box.appendChild(div);
+  }
+}
+
+// ---- GROUP CHAT ----
+async function loadGroupMessages() {
+  lastMsgDate = null;
+  const { data } = await sb
+    .from('chat_messages')
+    .select('*')
+    .order('created_at', { ascending: true })
+    .limit(100);
+
+  const box = document.getElementById('chatMessages');
+  if (!box) return;
+  box.innerHTML = '';
+
+  // Pinned
+  const pinned = (data || []).find(m => m.is_pinned);
+  const pinnedEl = document.getElementById('chatPinned');
+  const pinnedTxt = document.getElementById('pinnedText');
+  if (pinned && pinnedEl && pinnedTxt) {
+    pinnedEl.style.display = 'flex';
+    pinnedTxt.textContent = `${pinned.user_name}: ${pinned.message}`;
+  } else if (pinnedEl) {
+    pinnedEl.style.display = 'none';
+  }
+
+  (data || []).forEach(m => renderGroupBubble(m, box, false));
+  box.scrollTop = box.scrollHeight;
+
+  // Auto delete 24hr old non-pinned
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  sb.from('chat_messages').delete().lt('created_at', cutoff).eq('is_pinned', false).then(() => {});
+
+  // Check unread DMs for dot
+  checkUnreadDMs();
+}
+
+function renderGroupBubble(m, box, animate = true) {
+  const isMine = m.user_id === currentUser?.id;
+  const isAdmin = currentUser?.id === ADMIN_ID;
+  const time = new Date(m.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  const dateStr = m.created_at.split('T')[0];
+
+  maybeAddDateDivider(box, dateStr);
+
+  const colorClass = getSenderColor(m.user_id);
+  const initial = (m.user_name || 'W')[0].toUpperCase();
+
+const wrap = document.createElement('div');
+  wrap.className = `chat-msg-wrap ${isMine ? 'mine' : 'theirs'}`;
+  wrap.setAttribute('data-id', m.id);
+  if (animate) wrap.style.animation = 'bubblePop .2s ease';
+
+  let contentHtml = '';
+  if (m.image_url) {
+    contentHtml = `<img src="${m.image_url}" class="chat-img-preview" onclick="window.open('${m.image_url}','_blank')" />`;
+  }
+  if (m.message) {
+    contentHtml += `<div>${m.message}</div>`;
+  }
+
+  const pinBtn = isAdmin
+    ? `<button class="chat-pin-btn" onclick="pinMessage('${m.id}',${m.is_pinned})" title="${m.is_pinned ? 'Unpin' : 'Pin'}">📌</button>`
+    : '';
+
+  wrap.innerHTML = `
+    <div class="bubble-avatar">${initial}</div>
+    <div class="chat-bubble ${m.is_pinned ? 'pinned-msg' : ''}">
+      ${!isMine ? `<div class="chat-sender ${colorClass}">${m.user_name}</div>` : ''}
+      ${contentHtml}
+      <div class="chat-bubble-meta">
+        <span class="chat-time">${time}</span>
+        ${isMine ? `<span class="chat-tick">✓✓</span>` : ''}
+        ${pinBtn}
+      </div>
+    </div>`;
+
+  box.appendChild(wrap);
+}
+
+function subscribeGroupChat() {
+  if (groupChatSub) { sb.removeChannel(groupChatSub); groupChatSub = null; }
+  groupChatSub = sb
+    .channel('group-chat-v2')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, payload => {
+      const box = document.getElementById('chatMessages');
+      if (!box || currentChatTab !== 'group') return;
+      const m = payload.new;
+      // Skip if already rendered optimistically (own message)
+      if (box.querySelector(`[data-id="${m.id}"]`)) return;
+      renderGroupBubble(m, box, true);
+      box.scrollTop = box.scrollHeight;
+    })
+    .subscribe();
+}
+
+async function sendGroupMessage() {
+  const input = document.getElementById('chatInput');
+  const msg = input?.value?.trim();
+  if (!msg || !currentUser) return;
+  const name = document.getElementById('warriorName')?.textContent || 'Warrior';
+  input.value = '';
+
+  // Optimistic render — show immediately without waiting for DB
+  const box = document.getElementById('chatMessages');
+  const tempMsg = {
+    id: 'temp-' + Date.now(),
+    user_id: currentUser.id,
+    user_name: name,
+    message: msg,
+    is_pinned: false,
+    created_at: new Date().toISOString(),
+    _temp: true
+  };
+  if (box) { renderGroupBubble(tempMsg, box, true); box.scrollTop = box.scrollHeight; }
+
+  const { data: inserted } = await sb.from('chat_messages').insert({
+    user_id: currentUser.id,
+    user_name: name,
+    message: msg,
+    is_pinned: false
+  }).select().single();
+
+  // Replace temp with real (update id so subscription skips duplicate)
+  if (inserted && box) {
+    const tempEl = box.querySelector(`[data-id="${tempMsg.id}"]`);
+    if (tempEl) tempEl.setAttribute('data-id', inserted.id);
+  }
+}
+
+async function sendGroupImage(input) {
+  if (!input.files || !input.files[0] || !currentUser) return;
+  const file = input.files[0];
+  const ext = file.name.split('.').pop();
+  const path = `group/${currentUser.id}_${Date.now()}.${ext}`;
+  showToast('📤 Uploading...');
+
+  const { error: upErr } = await sb.storage.from('chat-images').upload(path, file);
+  if (upErr) { showToast('❌ Upload failed'); return; }
+
+  const { data: urlData } = sb.storage.from('chat-images').getPublicUrl(path);
+  const name = document.getElementById('warriorName')?.textContent || 'Warrior';
+
+  await sb.from('chat_messages').insert({
+    user_id: currentUser.id,
+    user_name: name,
+    message: '',
+    image_url: urlData.publicUrl,
+    is_pinned: false
+  });
+  input.value = '';
+  showToast('✅ Image sent!');
+}
+
+async function pinMessage(msgId, currentlyPinned) {
+  if (currentUser?.id !== ADMIN_ID) { showToast('❌ Only admin can pin'); return; }
+  await sb.from('chat_messages').update({ is_pinned: false }).eq('is_pinned', true);
+  if (!currentlyPinned) {
+    await sb.from('chat_messages').update({ is_pinned: true }).eq('id', msgId);
+    showToast('📌 Pinned!');
+  } else {
+    showToast('📌 Unpinned!');
+  }
+  loadGroupMessages();
+}
+
+// ---- DM ----
+async function loadDMUsers() {
+  const { data } = await sb.from('bct_profiles').select('user_id, name');
+  const list = document.getElementById('dmUsersList');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const others = (data || []).filter(u => u.user_id !== currentUser?.id);
+  if (!others.length) {
+    list.innerHTML = '<p style="color:var(--muted);font-style:italic;padding:.5rem">No other warriors yet</p>';
+    return;
+  }
+
+  const { data: unread } = await sb
+    .from('dm_messages')
+    .select('sender_id, message')
+    .eq('receiver_id', currentUser.id)
+    .eq('is_read', false);
+
+  const unreadMap = {};
+  const previewMap = {};
+  (unread || []).forEach(r => {
+    unreadMap[r.sender_id] = (unreadMap[r.sender_id] || 0) + 1;
+    previewMap[r.sender_id] = r.message;
+  });
+
+  others.forEach(u => {
+    const row = document.createElement('div');
+    row.className = 'dm-user-row';
+    const cnt = unreadMap[u.user_id] || 0;
+    const preview = previewMap[u.user_id] || 'Tap to chat';
+    row.innerHTML = `
+      <div class="dm-user-avatar">${u.name[0].toUpperCase()}</div>
+      <div class="dm-user-info">
+        <div class="dm-user-name">${u.name}</div>
+        <div class="dm-user-preview">${preview}</div>
+      </div>
+      ${cnt > 0 ? `<div class="dm-unread">${cnt}</div>` : ''}`;
+    row.onclick = () => openDMWith(u.user_id, u.name);
+    list.appendChild(row);
+  });
+}
+
+async function openDMWith(userId, userName) {
+  dmWithUserId = userId;
+  dmWithUserName = userName;
+  lastMsgDate = null;
+
+  document.getElementById('dmUserList').style.display = 'none';
+  const convo = document.getElementById('dmConversation');
+  convo.style.display = 'flex';
+  convo.style.flexDirection = 'column';
+  convo.style.flex = '1';
+  convo.style.overflow = 'hidden';
+
+  const initial = userName[0].toUpperCase();
+  document.getElementById('dmWithAvatar').textContent = initial;
+  document.getElementById('dmWithName').textContent = userName;
+
+  await sb.from('dm_messages')
+    .update({ is_read: true })
+    .eq('sender_id', userId)
+    .eq('receiver_id', currentUser.id);
+
+  loadDMMessages();
+  subscribeDMChat();
+  checkUnreadDMs();
+}
+
+function closeDMConvo() {
+  dmWithUserId = null;
+  dmWithUserName = null;
+  document.getElementById('dmConversation').style.display = 'none';
+  document.getElementById('dmUserList').style.display = 'block';
+  if (dmChatSub) { sb.removeChannel(dmChatSub); dmChatSub = null; }
+  loadDMUsers();
+}
+
+async function loadDMMessages() {
+  lastMsgDate = null;
+  const { data } = await sb
+    .from('dm_messages')
+    .select('*')
+    .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${dmWithUserId}),and(sender_id.eq.${dmWithUserId},receiver_id.eq.${currentUser.id})`)
+    .order('created_at', { ascending: true })
+    .limit(100);
+
+  const box = document.getElementById('dmMessages');
+  if (!box) return;
+  box.innerHTML = '';
+  (data || []).forEach(m => renderDMBubble(m, box, false));
+  box.scrollTop = box.scrollHeight;
+}
+
+function renderDMBubble(m, box, animate = true) {
+  const isMine = m.sender_id === currentUser?.id;
+  const time = new Date(m.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  const dateStr = m.created_at.split('T')[0];
+
+  maybeAddDateDivider(box, dateStr);
+
+  const wrap = document.createElement('div');
+  wrap.className = `chat-msg-wrap ${isMine ? 'mine' : 'theirs'}`;
+  wrap.setAttribute('data-id', m.id);
+
+  const initial = isMine
+    ? (document.getElementById('warriorName')?.textContent || 'W')[0].toUpperCase()
+    : (dmWithUserName || 'W')[0].toUpperCase();
+
+  let contentHtml = '';
+  if (m.image_url) {
+    contentHtml = `<img src="${m.image_url}" class="chat-img-preview" onclick="window.open('${m.image_url}','_blank')" />`;
+  }
+  if (m.message) contentHtml += `<div>${m.message}</div>`;
+
+  wrap.innerHTML = `
+    <div class="bubble-avatar">${initial}</div>
+    <div class="chat-bubble">
+      ${contentHtml}
+      <div class="chat-bubble-meta">
+        <span class="chat-time">${time}</span>
+        ${isMine ? `<span class="chat-tick ${m.is_read ? 'read' : ''}">✓✓</span>` : ''}
+      </div>
+    </div>`;
+
+  box.appendChild(wrap);
+}
+
+function subscribeDMChat() {
+  if (dmChatSub) { sb.removeChannel(dmChatSub); dmChatSub = null; }
+  dmChatSub = sb
+    .channel('dm-' + currentUser.id + '-' + (dmWithUserId || ''))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'dm_messages' }, payload => {
+      const m = payload.new;
+      const relevant =
+        (m.sender_id === currentUser.id && m.receiver_id === dmWithUserId) ||
+        (m.sender_id === dmWithUserId && m.receiver_id === currentUser.id);
+      if (!relevant) return;
+      const box = document.getElementById('dmMessages');
+      if (!box) return;
+      // Skip own optimistic message already shown
+      if (box.querySelector(`[data-id="${m.id}"]`)) return;
+      renderDMBubble(m, box, true);
+      box.scrollTop = box.scrollHeight;
+      // Mark as read if receiver is me
+      if (m.receiver_id === currentUser.id) {
+        sb.from('dm_messages').update({ is_read: true }).eq('id', m.id).then(() => {});
+      }
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'dm_messages' }, payload => {
+      // Green tick — update is_read on existing bubble
+      const m = payload.new;
+      if (m.sender_id !== currentUser.id) return;
+      const box = document.getElementById('dmMessages');
+      if (!box) return;
+      const el = box.querySelector(`[data-id="${m.id}"] .chat-tick`);
+      if (el && m.is_read) { el.classList.add('read'); el.style.color = '#22c55e'; }
+    })
+    .subscribe();
+}
+
+async function sendDM() {
+  const input = document.getElementById('dmInput');
+  const msg = input?.value?.trim();
+  if (!msg || !currentUser || !dmWithUserId) return;
+  const name = document.getElementById('warriorName')?.textContent || 'Warrior';
+  input.value = '';
+
+  // Optimistic render
+  const box = document.getElementById('dmMessages');
+  const tempMsg = {
+    id: 'temp-' + Date.now(),
+    sender_id: currentUser.id,
+    receiver_id: dmWithUserId,
+    sender_name: name,
+    message: msg,
+    is_read: false,
+    created_at: new Date().toISOString(),
+    _temp: true
+  };
+  if (box) { renderDMBubble(tempMsg, box, true); box.scrollTop = box.scrollHeight; }
+
+  const { data: inserted } = await sb.from('dm_messages').insert({
+    sender_id: currentUser.id,
+    receiver_id: dmWithUserId,
+    sender_name: name,
+    message: msg,
+    is_read: false
+  }).select().single();
+
+  // Replace temp id
+  if (inserted && box) {
+    const tempEl = box.querySelector(`[data-id="${tempMsg.id}"]`);
+    if (tempEl) tempEl.setAttribute('data-id', inserted.id);
+  }
+}
+
+async function sendDMImage(input) {
+  if (!input.files || !input.files[0] || !currentUser || !dmWithUserId) return;
+  const file = input.files[0];
+  const ext = file.name.split('.').pop();
+  const path = `dm/${currentUser.id}_${Date.now()}.${ext}`;
+  showToast('📤 Uploading...');
+
+  const { error: upErr } = await sb.storage.from('chat-images').upload(path, file);
+  if (upErr) { showToast('❌ Upload failed'); return; }
+
+  const { data: urlData } = sb.storage.from('chat-images').getPublicUrl(path);
+  const name = document.getElementById('warriorName')?.textContent || 'Warrior';
+
+  await sb.from('dm_messages').insert({
+    sender_id: currentUser.id,
+    receiver_id: dmWithUserId,
+    sender_name: name,
+    message: '',
+    image_url: urlData.publicUrl,
+    is_read: false
+  });
+  input.value = '';
+  showToast('✅ Image sent!');
+}
+
+async function checkUnreadDMs() {
+  if (!currentUser) return;
+  const { data } = await sb
+    .from('dm_messages')
+    .select('id')
+    .eq('receiver_id', currentUser.id)
+    .eq('is_read', false);
+  const dot = document.getElementById('chatUnreadDot');
+  if (dot) dot.style.display = (data && data.length > 0) ? 'block' : 'none';
+}
+
+// Enter key
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  const active = document.activeElement;
+  if (active?.id === 'chatInput') sendGroupMessage();
+  if (active?.id === 'dmInput') sendDM();
+});
