@@ -776,7 +776,7 @@ async function init() {
     return;
   }
 
-  // Check existing session
+  // Auto-login — session browser mein saved rahega
   const { data: { session } } = await sb.auth.getSession();
   if (session && session.user) {
     await onLogin(session.user);
@@ -784,6 +784,18 @@ async function init() {
     showScreen('authScreen');
     el('regStartDate').value = todayStr;
   }
+
+  // Auth state listener — token refresh hone par bhi logged in rahe
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session && session.user && !currentUser) {
+      await onLogin(session.user);
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null; profile = null; logs = {}; triggers = [];
+      showScreen('authScreen');
+    } else if (event === 'TOKEN_REFRESHED' && session && session.user) {
+      currentUser = session.user;
+    }
+  });
 
   // Auth listeners
   el('loginBtn').addEventListener('click', doLogin);
@@ -861,53 +873,79 @@ function initClubClock() {
 
 function updateClubClock() {
   const now = new Date();
-  const hh = String(now.getHours()).padStart(2,'0');
-  const mm = String(now.getMinutes()).padStart(2,'0');
-  const ss = String(now.getSeconds()).padStart(2,'0');
-  const timeEl = document.getElementById('clubTime');
-  if (timeEl) timeEl.textContent = `${hh}:${mm}:${ss}`;
+  const totalSecs = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+  const openSecs  = 5 * 3600;  // 5:00 AM
+  const closeSecs = 6 * 3600;  // 6:00 AM
 
-  const h = now.getHours(), m = now.getMinutes();
-  const totalMins = h * 60 + m;
-  const openMins  = 4 * 60 + 45;  // 4:45 AM
-  const closeMins = 5 * 60 + 30;  // 5:30 AM
-  const fiveMins  = 5 * 60;       // 5:00 AM
-
+  const timeEl   = document.getElementById('clubTime');
   const statusEl = document.getElementById('clubWindowStatus');
-  if (statusEl) {
-    if (totalMins < openMins)       statusEl.textContent = 'Window opens at 4:45 AM';
-    else if (totalMins < fiveMins)  statusEl.textContent = '✅ Window Open — Join early for full 30 pts!';
-    else if (totalMins < closeMins) {
-      const late = totalMins - fiveMins;
-      statusEl.textContent = `⏱ ${late} min late — You'll earn ${30 - late} pts`;
-    }
-    else statusEl.textContent = '🔒 Window closed for today';
+
+  function fmt(secs) {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    return h > 0
+      ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+      : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
   }
 
-  updateClubButtons(totalMins, openMins, closeMins);
+  if (totalSecs < openSecs) {
+    const diff = openSecs - totalSecs;
+    if (timeEl) timeEl.textContent = `⏳ Opens in ${fmt(diff)}`;
+    if (statusEl) statusEl.textContent = 'Window opens at 5:00 AM';
+  } else if (totalSecs < closeSecs) {
+    const remaining = closeSecs - totalSecs;
+    const lateSecs  = totalSecs - openSecs;
+    const pts = Math.max(0, 60 - Math.floor(lateSecs / 60));
+    if (timeEl) timeEl.textContent = `🟢 Closes in ${fmt(remaining)}`;
+    if (statusEl) statusEl.textContent = lateSecs < 60
+      ? `✅ Window Open! Check in for full 60 pts!`
+      : `⏱ ${Math.floor(lateSecs / 60)} min late — ${pts} pts available`;
+  } else {
+    const nextOpen = (24 * 3600) - totalSecs + openSecs;
+    if (timeEl) timeEl.textContent = `🔒 Opens in ${fmt(nextOpen)}`;
+    if (statusEl) statusEl.textContent = 'Window closed — opens again at 5:00 AM';
+  }
+
+  const totalMins = Math.floor(totalSecs / 60);
+  updateClubButtons(totalMins, openSecs / 60, closeSecs / 60);
 }
 
 async function updateClubButtons(totalMins, openMins, closeMins) {
-  const joinBtn    = document.getElementById('clubJoinBtn');
-  const closedMsg  = document.getElementById('clubClosedMsg');
-  const doneMsg    = document.getElementById('clubDoneMsg');
+  const joinBtn   = document.getElementById('clubJoinBtn');
+  const closedMsg = document.getElementById('clubClosedMsg');
+  const doneMsg   = document.getElementById('clubDoneMsg');
   if (!joinBtn) return;
 
-  const todayStr = getTodayStr();
+  if (closedMsg) closedMsg.style.display = 'none';
+  if (doneMsg)   doneMsg.style.display   = 'none';
+  joinBtn.style.display = 'block';
+
+  const todayStr    = getTodayStr();
   const alreadyDone = await hasClubCheckinToday(todayStr);
 
-  joinBtn.style.display   = 'none';
-  closedMsg.style.display = 'none';
-  doneMsg.style.display   = 'none';
-
   if (alreadyDone) {
-    doneMsg.style.display = 'block';
+    joinBtn.textContent        = '✅ Attendance Done!';
+    joinBtn.style.background   = 'linear-gradient(135deg, #10b981, #059669)';
+    joinBtn.style.color        = '#fff';
+    joinBtn.style.boxShadow    = '0 0 16px #10b98188';
+    joinBtn.style.cursor       = 'default';
+    joinBtn.disabled           = true;
   } else if (totalMins >= openMins && totalMins < closeMins) {
-    joinBtn.style.display = 'block';
-  } else if (totalMins >= closeMins) {
-    closedMsg.style.display = 'block';
+    joinBtn.textContent        = '✅ ATTENDANCE';
+    joinBtn.style.background   = 'linear-gradient(135deg, #f59e0b, #fcd34d)';
+    joinBtn.style.color        = '#1a0030';
+    joinBtn.style.boxShadow    = '0 0 28px #f59e0bcc';
+    joinBtn.style.cursor       = 'pointer';
+    joinBtn.disabled           = false;
+  } else {
+    joinBtn.textContent        = '🔒 ATTENDANCE — Opens 5:00 AM';
+    joinBtn.style.background   = 'linear-gradient(135deg, #dc2626, #ef4444)';
+    joinBtn.style.color        = '#fff';
+    joinBtn.style.boxShadow    = '0 0 12px #dc262688';
+    joinBtn.style.cursor       = 'not-allowed';
+    joinBtn.disabled           = true;
   }
-  // before 4:45 — all hidden, status text says window opens at 4:45
 }
 
 async function hasClubCheckinToday(dateStr) {
@@ -925,26 +963,24 @@ async function clubCheckIn() {
   if (!currentUser) return;
   const now = new Date();
   const h = now.getHours(), m = now.getMinutes();
-  const totalMins  = h * 60 + m;
-  const openMins   = 4 * 60 + 45;
-  const closeMins  = 5 * 60 + 30;
-  const fiveMins   = 5 * 60;
+  const totalMins = h * 60 + m;
+  const openMins  = 5 * 60;  // 5:00 AM
+  const closeMins = 6 * 60;  // 6:00 AM
 
   if (totalMins < openMins || totalMins >= closeMins) {
-    showToast('⏰ Check-in window is closed!'); return;
+    showToast('⏰ Window closed! Come at 5:00 AM'); return;
   }
 
-  const late   = Math.max(0, totalMins - fiveMins);
-  const points = Math.max(0, 30 - late);
+  const late   = Math.max(0, totalMins - openMins);
+  const points = Math.max(0, 60 - late);
   const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
   const dateStr = getTodayStr();
 
-  // Check duplicate
   const already = await hasClubCheckinToday(dateStr);
-  if (already) { showToast('Already checked in today!'); return; }
+  if (already) { showToast('✅ Already checked in today!'); return; }
 
   const joinBtn = document.getElementById('clubJoinBtn');
-  if (joinBtn) { joinBtn.disabled = true; joinBtn.textContent = 'Saving...'; }
+  if (joinBtn) { joinBtn.disabled = true; joinBtn.textContent = '⏳ Saving...'; }
 
   const { error } = await sb.from('club_checkins').insert({
     user_id: currentUser.id,
@@ -955,14 +991,12 @@ async function clubCheckIn() {
 
   if (error) {
     showToast('❌ Error saving — try again');
-    if (joinBtn) { joinBtn.disabled = false; joinBtn.textContent = '🌅 JOIN 5AM CLUB'; }
+    if (joinBtn) { joinBtn.disabled = false; joinBtn.textContent = '✅ ATTENDANCE'; }
     return;
   }
 
-  showToast(`🌅 Checked in at ${timeStr} — +${points} pts!`);
+  showToast(`✅ Attendance at ${timeStr} — +${points} pts!`, 4000);
   loadClubData();
-
-  // Open zoom link
   setTimeout(() => { window.open(CLUB_ZOOM_LINK, '_blank'); }, 800);
 }
 
@@ -1033,11 +1067,11 @@ async function loadClubLeaderboard() {
 
   // Get names
   const { data: profiles } = await sb
-  .from('bct_profiles')        // ✅
-  .select('user_id, name');    // ✅
+    .from('users')
+    .select('id, name');
 
-const nameMap = {};
-(profiles || []).forEach(p => { nameMap[p.user_id] = p.name; }); // ✅
+  const nameMap = {};
+  (profiles || []).forEach(p => { nameMap[p.id] = p.name; });
 
   const today = getTodayStr();
 
@@ -1610,4 +1644,5 @@ document.addEventListener('keydown', e => {
   const active = document.activeElement;
   if (active?.id === 'chatInput') sendGroupMessage();
   if (active?.id === 'dmInput') sendDM();
+});
 });
