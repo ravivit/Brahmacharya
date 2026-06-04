@@ -169,13 +169,13 @@ async function doLogout() {
 
 async function forgotPassword() {
   const email = el('loginEmail').value.trim();
-  if (!email) { el('loginErr').textContent = '❌ Pehle email dalo'; return; }
+  if (!email) { el('loginErr').textContent = '❌ Please enter your email address'; return; }
   const { error } = await sb.auth.resetPasswordForEmail(email, {
     redirectTo: window.location.href
   });
   if (error) { el('loginErr').textContent = '❌ ' + error.message; return; }
   el('loginErr').style.color = '#10b981';
-  el('loginErr').textContent = '✅ Reset link bhej diya — email check karo!';
+  el('loginErr').textContent = '✅ Password reset link sent — please check your email.';
 }
 
 async function onLogin(user) {
