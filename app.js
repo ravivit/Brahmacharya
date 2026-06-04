@@ -1059,12 +1059,12 @@ async function loadClubLeaderboard() {
   });
 
   // Get names
+ // Get names
   const { data: profiles } = await sb
-    .from('users')
-    .select('id, name');
-
+    .from('bct_profiles')
+    .select('user_id, name');
   const nameMap = {};
-  (profiles || []).forEach(p => { nameMap[p.id] = p.name; });
+  (profiles || []).forEach(p => { nameMap[p.user_id] = p.name; });
 
   const today = getTodayStr();
 
