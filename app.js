@@ -756,13 +756,7 @@ function renderAllUsersTable(warriors) {
     </table>`;
 }
 
-function showMain() { showScreen('mainScreen'); }
-function showClub() {
-  showScreen('clubScreen');
-  document.getElementById('zoomLink').href = CLUB_ZOOM_LINK;
-  initClubClock();
-  loadClubData();
-}
+
 
 // ============================================================
 // INIT
@@ -852,7 +846,6 @@ function showClub() {
   document.getElementById('mainScreen').style.display = 'none';
   document.getElementById('adminScreen').style.display = 'none';
   document.getElementById('clubScreen').style.display = 'block';
-  document.getElementById('zoomLink').href = CLUB_ZOOM_LINK;
   initClubClock();
   loadClubData();
 }
@@ -1644,5 +1637,4 @@ document.addEventListener('keydown', e => {
   const active = document.activeElement;
   if (active?.id === 'chatInput') sendGroupMessage();
   if (active?.id === 'dmInput') sendDM();
-});
 });
