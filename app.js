@@ -165,6 +165,19 @@ async function doLogout() {
   showScreen('authScreen');
 }
 
+
+
+async function forgotPassword() {
+  const email = el('loginEmail').value.trim();
+  if (!email) { el('loginErr').textContent = '❌ Pehle email dalo'; return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.href
+  });
+  if (error) { el('loginErr').textContent = '❌ ' + error.message; return; }
+  el('loginErr').style.color = '#10b981';
+  el('loginErr').textContent = '✅ Reset link bhej diya — email check karo!';
+}
+
 async function onLogin(user) {
   currentUser = user;
   // Load profile
