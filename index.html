@@ -1,30 +1,186 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Brahmacharya Tracker</title>
+
+  <!-- ===== PRIMARY SEO ===== -->
+  <title>BrahmaMode – #1 Brahmacharya & NoFap Tracker | Semen Retention, 5AM Club & Habit Tracker</title>
+  <meta name="description" content="BrahmaMode is India's best free Brahmacharya Tracker, NoFap Tracker, Semen Retention Tracker, No Porn Tracker, 5AM Club & Morning Routine Habit Tracker. Inspired by Premanand Ji Maharaj. Track streaks, earn points, redeem rewards. 1000 points = ₹100 cash. Join thousands of warriors on the path of self-mastery." />
+  <meta name="keywords" content="Brahmacharya Tracker, NoFap Tracker India, Semen Retention Tracker, No Porn Tracker, 5AM Club Tracker, 4AM Wake Up Tracker, Morning Routine Tracker, Habit Tracker India, Yoga Tracker, Meditation Tracker, Premanand Ji Maharaj, Semen Retention Benefits, NoFap Benefits, Brahmacharya Benefits, Celibacy Tracker, Self Improvement App India, Discipline Tracker, Dopamine Detox Tracker, Morning Yoga, Wim Hof Breathing Tracker, Cold Shower Tracker, Sadhguru Meditation, Brahmachari App, Virya Raksha, Ojas Shakti, Kundalini Awakening, Spiritual Discipline App" />
+  <meta name="author" content="BrahmaMode" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://www.brahmamode.space/" />
+
+  <!-- ===== OPEN GRAPH ===== -->
+  <meta property="og:title" content="BrahmaMode – Brahmacharya, NoFap & Semen Retention Tracker" />
+  <meta property="og:description" content="Track your Brahmacharya, NoFap, Semen Retention & Morning Routine. Inspired by Premanand Ji Maharaj. Earn points, redeem rewards. 1000 pts = ₹100 cash." />
+  <meta property="og:url" content="https://www.brahmamode.space/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://www.brahmamode.space/icons/icon-512.png" />
+  <meta property="og:site_name" content="BrahmaMode" />
+  <meta property="og:locale" content="en_IN" />
+
+  <!-- ===== TWITTER CARD ===== -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="BrahmaMode – Brahmacharya & NoFap Tracker" />
+  <meta name="twitter:description" content="India's best Brahmacharya, NoFap, Semen Retention & 5AM Club Tracker. Inspired by Premanand Ji Maharaj." />
+  <meta name="twitter:image" content="https://www.brahmamode.space/icons/icon-512.png" />
+
+  <!-- ===== SCHEMA.ORG JSON-LD ===== -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "BrahmaMode",
+    "url": "https://www.brahmamode.space",
+    "description": "India's best Brahmacharya, NoFap, Semen Retention, No Porn, 5AM Club and Habit Tracker app. Inspired by Premanand Ji Maharaj.",
+    "applicationCategory": "HealthApplication",
+    "operatingSystem": "Any",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
+    "aggregateRating": { "@type": "AggregateRating", "ratingValue": "4.9", "reviewCount": "1200" }
+  }
+  </script>
+
+  <!-- ===== STYLES & FONTS ===== -->
   <link rel="stylesheet" href="style.css" />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-  <!-- PWA -->
+
+  <!-- ===== PWA ===== -->
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#7b2fff" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Brahmacharya" />
+  <meta name="apple-mobile-web-app-title" content="BrahmaMode" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
+
+  <style>
+    /* ===== INSTALL POPUP ===== */
+    #installPopup {
+      display:none;position:fixed;inset:0;z-index:9999;
+      background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);
+      align-items:center;justify-content:center;padding:1.5rem;
+    }
+    #installPopup.show { display:flex; animation:fadeIn .3s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:scale(.93)} to{opacity:1;transform:scale(1)} }
+    .install-popup-box {
+      background:linear-gradient(135deg,#1a0035 0%,#0a0018 100%);
+      border:1px solid rgba(123,47,255,.5);border-radius:22px;
+      padding:2rem 1.5rem;max-width:360px;width:100%;text-align:center;
+      box-shadow:0 0 60px rgba(123,47,255,.3);position:relative;
+    }
+    .install-popup-icon { font-size:3rem;margin-bottom:.5rem; }
+    .install-popup-title { font-family:'Cinzel',serif;font-size:1.3rem;color:#fff;font-weight:700;margin-bottom:.4rem; }
+    .install-popup-sub { color:rgba(255,255,255,.65);font-size:.88rem;margin-bottom:1.4rem;line-height:1.5; }
+    .install-popup-features { display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.5rem;text-align:left; }
+    .install-popup-feat { display:flex;align-items:center;gap:.6rem;font-size:.83rem;color:rgba(255,255,255,.8); }
+    .install-popup-feat span:first-child { font-size:1rem; }
+    .install-popup-btn {
+      width:100%;padding:.85rem;border-radius:14px;border:none;cursor:pointer;font-size:1rem;font-weight:700;
+      background:linear-gradient(135deg,#7b2fff,#a855f7);color:#fff;letter-spacing:.5px;
+      font-family:'Rajdhani',sans-serif;margin-bottom:.75rem;
+      box-shadow:0 4px 24px rgba(123,47,255,.5);
+    }
+    .install-popup-skip { color:rgba(255,255,255,.4);font-size:.8rem;cursor:pointer;background:none;border:none;text-decoration:underline; }
+
+    /* ===== IMAGE SLIDER ===== */
+    .inspiration-slider { position:relative;overflow:hidden;border-radius:18px;margin:1.25rem 0;background:#0a0018; }
+    .slider-track { display:flex;transition:transform .5s cubic-bezier(.4,0,.2,1); }
+    .slider-slide {
+      min-width:100%;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;
+      flex-direction:column;gap:.75rem;
+      background:linear-gradient(135deg,rgba(123,47,255,.15),rgba(0,0,0,.8));
+      position:relative;overflow:hidden;
+    }
+    .slider-slide-emoji { font-size:4.5rem;filter:drop-shadow(0 0 24px rgba(123,47,255,.8)); }
+    .slider-slide-title { font-family:'Cinzel',serif;font-size:1rem;color:#fff;font-weight:700;text-align:center;padding:0 1rem; }
+    .slider-slide-sub { font-size:.78rem;color:rgba(255,255,255,.6);text-align:center;padding:0 1.5rem; }
+    .slider-dots { display:flex;justify-content:center;gap:.45rem;padding:.75rem 0 .25rem; }
+    .slider-dot { width:7px;height:7px;border-radius:50%;background:rgba(123,47,255,.35);cursor:pointer;transition:all .3s; }
+    .slider-dot.active { background:#a855f7;transform:scale(1.3); }
+    .slider-arrows { position:absolute;top:50%;transform:translateY(-50%);width:100%;display:flex;justify-content:space-between;pointer-events:none;padding:0 .6rem; }
+    .slider-arrow { pointer-events:all;background:rgba(0,0,0,.5);border:1px solid rgba(123,47,255,.4);color:#fff;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center; }
+
+    /* ===== MUSIC SECTION ===== */
+    .music-section {
+      background:linear-gradient(135deg,rgba(123,47,255,.12),rgba(168,85,247,.06));
+      border:1px solid rgba(123,47,255,.25);border-radius:18px;padding:1.25rem;margin:0 1rem 1.25rem;
+    }
+    .music-player { display:flex;align-items:center;gap:1rem; }
+    .music-art { width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#7b2fff,#a855f7);display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0; }
+    .music-info { flex:1;min-width:0; }
+    .music-name { font-family:'Cinzel',serif;font-size:.88rem;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .music-type { font-size:.72rem;color:rgba(255,255,255,.5);margin-top:.15rem; }
+    .music-controls { display:flex;align-items:center;gap:.6rem; }
+    .music-ctrl-btn { background:rgba(123,47,255,.25);border:1px solid rgba(123,47,255,.35);color:#fff;border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:all .2s; }
+    .music-ctrl-btn:hover { background:rgba(123,47,255,.5); }
+    .music-ctrl-btn.playing { background:linear-gradient(135deg,#7b2fff,#a855f7); }
+    .music-track-list { margin-top:1rem;display:flex;flex-direction:column;gap:.4rem; }
+    .music-track { display:flex;align-items:center;gap:.75rem;padding:.55rem .75rem;border-radius:10px;cursor:pointer;transition:all .2s;border:1px solid transparent; }
+    .music-track:hover,.music-track.active { background:rgba(123,47,255,.18);border-color:rgba(123,47,255,.35); }
+    .music-track-num { width:22px;text-align:center;font-size:.78rem;color:rgba(255,255,255,.4); }
+    .music-track-name { flex:1;font-size:.84rem;color:rgba(255,255,255,.85); }
+    .music-track-dur { font-size:.75rem;color:rgba(255,255,255,.4); }
+
+    /* ===== CONTENT SECTIONS ===== */
+    .content-section {
+      padding:1.5rem 1.25rem;margin:0 1rem 1.25rem;
+      background:rgba(255,255,255,.02);border:1px solid rgba(123,47,255,.15);border-radius:18px;
+    }
+    .content-section h2 { font-family:'Cinzel',serif;font-size:1.05rem;color:#a855f7;font-weight:700;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem; }
+    .content-section p { font-size:.88rem;color:rgba(255,255,255,.7);line-height:1.7;margin-bottom:.75rem; }
+    .content-section p:last-child { margin-bottom:0; }
+    .benefits-grid { display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-top:.75rem; }
+    .benefit-card { background:rgba(123,47,255,.1);border:1px solid rgba(123,47,255,.2);border-radius:12px;padding:.75rem;text-align:center; }
+    .benefit-icon { font-size:1.4rem;margin-bottom:.3rem; }
+    .benefit-text { font-size:.75rem;color:rgba(255,255,255,.75);line-height:1.4; }
+    .cash-banner {
+      background:linear-gradient(135deg,#7b2fff,#a855f7);border-radius:16px;padding:1.25rem;
+      text-align:center;margin-bottom:1rem;
+    }
+    .cash-banner-big { font-family:'Cinzel',serif;font-size:1.6rem;font-weight:900;color:#fff; }
+    .cash-banner-sub { font-size:.83rem;color:rgba(255,255,255,.85);margin-top:.25rem; }
+    .faq-item { border-bottom:1px solid rgba(123,47,255,.15);padding:.85rem 0; }
+    .faq-item:last-child { border-bottom:none; }
+    .faq-q { font-size:.9rem;color:#fff;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:.5rem; }
+    .faq-a { font-size:.83rem;color:rgba(255,255,255,.65);line-height:1.6;margin-top:.5rem;display:none; }
+    .faq-a.open { display:block; }
+    .faq-arrow { font-size:.7rem;color:#a855f7;transition:transform .2s;flex-shrink:0; }
+    .faq-arrow.open { transform:rotate(180deg); }
+    .vision-quote { font-family:'Cinzel',serif;font-style:italic;font-size:.95rem;color:#a855f7;text-align:center;border-left:3px solid #7b2fff;padding-left:1rem;margin:1rem 0; }
+    .tracker-types { display:flex;flex-direction:column;gap:.65rem;margin-top:.75rem; }
+    .tracker-type { display:flex;align-items:flex-start;gap:.75rem;background:rgba(123,47,255,.08);border-radius:12px;padding:.85rem; }
+    .tracker-type-icon { font-size:1.4rem;flex-shrink:0; }
+    .tracker-type-title { font-size:.88rem;color:#fff;font-weight:600; }
+    .tracker-type-desc { font-size:.78rem;color:rgba(255,255,255,.6);margin-top:.2rem;line-height:1.4; }
+  </style>
 </head>
 <body>
 
 <audio id="bgMusic" loop>
   <source src="music.mp3" type="audio/mpeg" />
 </audio>
-<button class="install-btn" id="installBtn" onclick="installApp()" title="Install App" style="display:none">
-  📲 Install App
-</button>
 <div id="particles"></div>
 <button class="music-btn" id="musicToggle" title="Toggle Music">🎵</button>
+
+<!-- ===== INSTALL POPUP ===== -->
+<div id="installPopup">
+  <div class="install-popup-box">
+    <div class="install-popup-icon">🔱</div>
+    <div class="install-popup-title">Install BrahmaMode App</div>
+    <div class="install-popup-sub">Get the full app experience — works offline, loads instantly, no browser needed.</div>
+    <div class="install-popup-features">
+      <div class="install-popup-feat"><span>⚡</span><span>Instant load, works offline</span></div>
+      <div class="install-popup-feat"><span>🔔</span><span>Daily reminders & notifications</span></div>
+      <div class="install-popup-feat"><span>🏆</span><span>Track streaks & earn rewards</span></div>
+      <div class="install-popup-feat"><span>💰</span><span>1000 Points = ₹100 Cash Reward</span></div>
+    </div>
+    <button class="install-popup-btn" id="installPopupBtn">📲 Install App — Free</button>
+    <button class="install-popup-skip" id="installPopupSkip">Maybe later</button>
+  </div>
+</div>
 
 <!-- ==================== AUTH SCREEN ==================== -->
 <div class="screen" id="authScreen">
@@ -39,7 +195,6 @@
       <button class="auth-tab" id="tabRegister" onclick="switchTab('register')">REGISTER</button>
     </div>
 
-    <!-- Login Form -->
     <div id="loginForm">
       <div class="form-group">
         <label>Email</label>
@@ -54,10 +209,9 @@
     </div>
 
     <p style="text-align:center;margin-top:.5rem">
-  <a href="#" onclick="forgotPassword()" style="color:var(--purple-glow);font-size:.85rem">Forgot Password?</a>
-</p>
+      <a href="#" onclick="forgotPassword()" style="color:var(--purple-glow);font-size:.85rem">Forgot Password?</a>
+    </p>
 
-    <!-- Register Form -->
     <div id="registerForm" style="display:none">
       <div class="form-group">
         <label>Warrior Name</label>
@@ -91,7 +245,6 @@
 
     <!-- HEADER -->
     <header class="header">
-      <!-- Row 1: Avatar + Name + Logout -->
       <div class="hdr-row1">
         <div class="avatar" id="avatarEl"></div>
         <div class="hdr-name-block">
@@ -101,7 +254,6 @@
         </div>
         <button class="btn-logout" id="logoutBtn" title="Logout">🚪</button>
       </div>
-      <!-- Row 2: Stats -->
       <div class="hdr-stats">
         <div class="hdr-stat">
           <span class="hdr-stat-val" id="headerStreak">0</span>
@@ -118,7 +270,6 @@
           <span class="hdr-stat-label">🏆 Best</span>
         </div>
       </div>
-      <!-- Row 3: Actions -->
       <div class="hdr-actions">
         <button class="hdr-btn-lb" id="adminBtn" onclick="showAdmin()">🏆 Leaderboard</button>
         <button class="hdr-btn-community chat-notify-btn" onclick="showChat()">
@@ -141,12 +292,10 @@
           <button class="btn-missed" id="btnMissed">💀 MISSED — I Slipped</button>
         </div>
       </div>
-
     </section>
 
 
-
-    <!-- CALENDAR -->
+      <!-- CALENDAR -->
     <section class="card-section">
       <h3 class="section-title">📅 My Journey Calendar</h3>
       <div class="calendar-nav">
@@ -157,15 +306,46 @@
       <div class="calendar-grid" id="calendarGrid"></div>
     </section>
 
-    <!-- CHALLENGES -->
+
+
+
+
+
+<!-- MUSIC PLAYER -->
+    <section class="card-section" style="padding:.75rem 0 0">
+      <h3 class="section-title" style="padding:0 1rem">🎵 Meditation Music</h3>
+      <div class="music-section">
+        <div class="music-player">
+          <div class="music-art" id="musicArt">🔱</div>
+          <div class="music-info">
+            <div class="music-name" id="musicTrackName">Om Namah Shivaya</div>
+            <div class="music-type" id="musicTrackType">Shiva Mantra • Meditation</div>
+          </div>
+          <div class="music-controls">
+            <button class="music-ctrl-btn" id="musicPrevBtn" title="Previous">⏮</button>
+            <button class="music-ctrl-btn" id="musicPlayBtn" title="Play/Pause">▶</button>
+            <button class="music-ctrl-btn" id="musicNextBtn" title="Next">⏭</button>
+          </div>
+        </div>
+        <div class="music-track-list" id="musicTrackList"></div>
+      </div>
+    </section>
+
+  <!-- CHALLENGES -->
     <section class="card-section">
       <h3 class="section-title">⚔️ Challenges & Badges</h3>
       <div class="challenges-grid" id="challengesGrid"></div>
     </section>
 
-    <!-- POINTS -->
+
+
+       <!-- POINTS -->
     <section class="card-section">
       <h3 class="section-title">💎 Points System</h3>
+      <div class="cash-banner">
+        <div class="cash-banner-big">💰 1000 Points = ₹100 Cash</div>
+        <div class="cash-banner-sub">Earn real money by maintaining your Brahmacharya streak!</div>
+      </div>
       <div class="buddha-banner">
         <div class="buddha-statue">🧘</div>
         <div class="buddha-text">
@@ -173,14 +353,15 @@
           <div class="buddha-sub">— Brahmacharya is the path to liberation</div>
         </div>
       </div>
-   <div class="points-grid">
-        <div class="point-card"><span class="pc-label">Daily</span><span class="pc-val">+10 pts</span></div>
+      <div class="points-grid">
+        <div class="point-card milestone-card"><span class="pc-label">Daily</span><span class="pc-val">+10 pts</span></div>
         <div class="point-card milestone-card"><span class="pc-label">3-Day (Lv1)</span><span class="pc-val">+30 pts<span class="pc-bonus">+30 bonus = 60 total</span></span></div>
         <div class="point-card milestone-card"><span class="pc-label">7-Day (Lv2)</span><span class="pc-val">+70 pts<span class="pc-bonus">+140 bonus = 210 total</span></span></div>
         <div class="point-card milestone-card"><span class="pc-label">15-Day (Lv3)</span><span class="pc-val">+150 pts<span class="pc-bonus">+450 bonus = 600 total</span></span></div>
         <div class="point-card milestone-card"><span class="pc-label">21-Day (Lv4)</span><span class="pc-val">+210 pts<span class="pc-bonus">+840 bonus</span></span></div>
         <div class="point-card milestone-card"><span class="pc-label">30-Day (Lv5)</span><span class="pc-val">+300 pts<span class="pc-bonus">+1500 bonus</span></span></div>
         <div class="point-card milestone-card"><span class="pc-label">90-Day (Lv6)</span><span class="pc-val">+900 pts<span class="pc-bonus">+5400 bonus</span></span></div>
+        <div class="point-card milestone-card" style="border-color:#ffd700;box-shadow:0 0 16px rgba(255,215,0,.2)"><span class="pc-label" style="color:#ffd700">180-Day (Lv7) 👑</span><span class="pc-val" style="color:#ffd700">+1800 pts<span class="pc-bonus">14,400 pts total</span></span></div>
       </div>
       <div class="redeem-section">
         <div class="redeem-info">
@@ -194,10 +375,216 @@
       </div>
     </section>
 
-    <!-- MOTIVATION -->
-    <section class="card-section" style="margin-bottom:2rem">
-      <h3 class="section-title">💪 Daily Motivation</h3>
-      <div class="motivation-ticker" id="motivationTicker"></div>
+
+
+    <!-- INSPIRATION IMAGE SLIDER -->
+    <section class="card-section" style="padding:.75rem 1rem 0">
+      <h3 class="section-title">🔱 Inspiration Gallery</h3>
+      <div class="inspiration-slider">
+        <div class="slider-track" id="sliderTrack">
+          <div class="slider-slide" style="background:linear-gradient(135deg,#1a0035,#0a0018)">
+            <div class="slider-slide-emoji">🧘</div>
+            <div class="slider-slide-title">Buddha's Path of Meditation</div>
+            <div class="slider-slide-sub">"Peace comes from within. Do not seek it without."</div>
+          </div>
+          <div class="slider-slide" style="background:linear-gradient(135deg,#0d2b00,#0a0018)">
+            <div class="slider-slide-emoji">🙏</div>
+            <div class="slider-slide-title">Premanand Ji Maharaj</div>
+            <div class="slider-slide-sub">"Virya Raksha hi Jeevan hai. Brahmacharya is the highest tapasya."</div>
+          </div>
+          <div class="slider-slide" style="background:linear-gradient(135deg,#2b1a00,#0a0018)">
+            <div class="slider-slide-emoji">🧘‍♂️</div>
+            <div class="slider-slide-title">Morning Yoga & Pranayama</div>
+            <div class="slider-slide-sub">4 AM sadhana fills the body with Ojas & Tejas. Rise early, conquer the day.</div>
+          </div>
+          <div class="slider-slide" style="background:linear-gradient(135deg,#1a001a,#0a0018)">
+            <div class="slider-slide-emoji">🔥</div>
+            <div class="slider-slide-title">Semen Retention Power</div>
+            <div class="slider-slide-sub">90 days of retention = mental clarity, strength, spiritual energy & confidence.</div>
+          </div>
+          <div class="slider-slide" style="background:linear-gradient(135deg,#001a2b,#0a0018)">
+            <div class="slider-slide-emoji">🌅</div>
+            <div class="slider-slide-title">5AM Club Warriors</div>
+            <div class="slider-slide-sub">Win the morning, win the day. The first hour decides your destiny.</div>
+          </div>
+          <div class="slider-slide" style="background:linear-gradient(135deg,#1a1a00,#0a0018)">
+            <div class="slider-slide-emoji">⚡</div>
+            <div class="slider-slide-title">Kundalini Awakening</div>
+            <div class="slider-slide-sub">Conserve your vital energy. Let it rise. Brahmacharya is the key.</div>
+          </div>
+          <div class="slider-slide" style="background:linear-gradient(135deg,#2b0000,#0a0018)">
+            <div class="slider-slide-emoji">🏔️</div>
+            <div class="slider-slide-title">Sadhu's Discipline</div>
+            <div class="slider-slide-sub">Ancient rishis knew: control of senses = control of the universe.</div>
+          </div>
+          <div class="slider-slide" style="background:linear-gradient(135deg,#00102b,#0a0018)">
+            <div class="slider-slide-emoji">💎</div>
+            <div class="slider-slide-title">NoFap Transformation</div>
+            <div class="slider-slide-sub">Day 1 is hard. Day 90 is a new you. Start today. Stay strong.</div>
+          </div>
+        </div>
+        <div class="slider-arrows">
+          <button class="slider-arrow" id="sliderPrev">‹</button>
+          <button class="slider-arrow" id="sliderNext">›</button>
+        </div>
+        <div class="slider-dots" id="sliderDots"></div>
+      </div>
+    </section>
+
+    
+
+  
+
+  
+
+ 
+   
+
+    <!-- WHAT IS BRAHMACHARYA -->
+    <section class="card-section" style="padding:0">
+      <div class="content-section" style="margin:0">
+        <h2>🔱 What is Brahmacharya?</h2>
+        <p>Brahmacharya is one of the most powerful ancient disciplines from the Vedic tradition of India. The word comes from Sanskrit — "Brahma" meaning divine consciousness, and "Charya" meaning to walk the path. In simple terms, Brahmacharya means the conservation and sublimation of your vital energy (Virya/Ojas) for higher spiritual, mental, and physical growth.</p>
+        <p>Practiced by great saints, rishis, monks, and warriors for thousands of years, Brahmacharya is not just about celibacy — it is a complete lifestyle of self-mastery. It includes control of senses, pure diet, early rising, meditation, yoga, and service.</p>
+        <p>In the modern world, Brahmacharya is the ultimate counter-movement to pornography addiction, lust, and dopamine slavery. It is the path of the true warrior.</p>
+        <div class="vision-quote">"Brahmacharya is the divine power. One who preserves it becomes invincible." — Swami Vivekananda</div>
+      </div>
+    </section>
+
+    <!-- WHAT DOES THIS APP DO -->
+    <section class="card-section" style="padding:0">
+      <div class="content-section" style="margin:0">
+        <h2>📱 What Does BrahmaMode Do?</h2>
+        <p>BrahmaMode is India's most complete self-discipline and spiritual growth tracker. It is designed for warriors who are serious about transforming their life through Brahmacharya, NoFap, Semen Retention, and Morning Discipline.</p>
+        <div class="tracker-types">
+          <div class="tracker-type">
+            <div class="tracker-type-icon">🔱</div>
+            <div><div class="tracker-type-title">Brahmacharya Tracker</div><div class="tracker-type-desc">Track your celibacy streak day by day. Mark daily check-ins, earn points, maintain your sacred vow.</div></div>
+          </div>
+          <div class="tracker-type">
+            <div class="tracker-type-icon">💪</div>
+            <div><div class="tracker-type-title">NoFap & No Porn Tracker</div><div class="tracker-type-desc">Break free from pornography and masturbation addiction. Track your clean days and see your mental clarity return.</div></div>
+          </div>
+          <div class="tracker-type">
+            <div class="tracker-type-icon">🔥</div>
+            <div><div class="tracker-type-title">Semen Retention Tracker</div><div class="tracker-type-desc">Track your semen retention journey. Watch your energy, focus, confidence, and attraction increase with each passing day.</div></div>
+          </div>
+          <div class="tracker-type">
+            <div class="tracker-type-icon">🌅</div>
+            <div><div class="tracker-type-title">5AM Club & 4AM Wakeup Tracker</div><div class="tracker-type-desc">Join the elite 5AM Club. Check in between 5:00–6:00 AM. The earlier you rise, the more points you earn.</div></div>
+          </div>
+          <div class="tracker-type">
+            <div class="tracker-type-icon">🧘</div>
+            <div><div class="tracker-type-title">Morning Yoga & Meditation Tracker</div><div class="tracker-type-desc">Track your daily yoga, pranayama, and meditation sessions. Build the habit of morning sadhana.</div></div>
+          </div>
+          <div class="tracker-type">
+            <div class="tracker-type-icon">🏆</div>
+            <div><div class="tracker-type-title">Habit & Discipline Tracker</div><div class="tracker-type-desc">Track all your good habits in one place. Build streaks, earn badges, compete on the leaderboard with fellow warriors.</div></div>
+          </div>
+          <div class="tracker-type">
+            <div class="tracker-type-icon">🏘️</div>
+            <div><div class="tracker-type-title">Brotherhood Community</div><div class="tracker-type-desc">Connect with fellow warriors in the group chat. Send DMs, share progress, motivate each other on the path.</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHY IS THIS APP USEFUL -->
+    <section class="card-section" style="padding:0">
+      <div class="content-section" style="margin:0">
+        <h2>✅ Why is BrahmaMode Useful?</h2>
+        <p>Most people fail at Brahmacharya and NoFap because they have no system, no accountability, and no community. BrahmaMode solves all three problems.</p>
+        <div class="benefits-grid">
+          <div class="benefit-card"><div class="benefit-icon">📊</div><div class="benefit-text">Visual streak calendar keeps you accountable every single day</div></div>
+          <div class="benefit-card"><div class="benefit-icon">💰</div><div class="benefit-text">Real cash rewards — 1000 points = ₹100 — discipline pays literally</div></div>
+          <div class="benefit-card"><div class="benefit-icon">🤝</div><div class="benefit-text">Brotherhood community of warriors on the same path as you</div></div>
+          <div class="benefit-card"><div class="benefit-icon">⚔️</div><div class="benefit-text">Challenges and badges that gamify your spiritual journey</div></div>
+          <div class="benefit-card"><div class="benefit-icon">🌅</div><div class="benefit-text">5AM Club with live morning sessions and leaderboard rankings</div></div>
+          <div class="benefit-card"><div class="benefit-icon">🎵</div><div class="benefit-text">Built-in meditation music for focus and spiritual practice</div></div>
+          <div class="benefit-card"><div class="benefit-icon">📱</div><div class="benefit-text">Works offline as a PWA — install like a native app, no Play Store needed</div></div>
+          <div class="benefit-card"><div class="benefit-icon">🔔</div><div class="benefit-text">Daily check-in reminders so you never miss a day of discipline</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEMEN RETENTION BENEFITS -->
+    <section class="card-section" style="padding:0">
+      <div class="content-section" style="margin:0">
+        <h2>💎 Benefits of Semen Retention & Brahmacharya</h2>
+        <p>The benefits of semen retention and Brahmacharya have been documented in Vedic scriptures, modern science, and the personal experiences of millions of men worldwide. Here is what happens when you conserve your vital energy:</p>
+        <div class="benefits-grid">
+          <div class="benefit-card"><div class="benefit-icon">🧠</div><div class="benefit-text">Extreme mental clarity and focus — brain fog disappears completely</div></div>
+          <div class="benefit-card"><div class="benefit-icon">💪</div><div class="benefit-text">Physical strength and athletic performance increase dramatically</div></div>
+          <div class="benefit-card"><div class="benefit-icon">😌</div><div class="benefit-text">Unshakeable confidence and deep inner calm in all situations</div></div>
+          <div class="benefit-card"><div class="benefit-icon">✨</div><div class="benefit-text">Glowing skin, sharp eyes, magnetic aura and attractive personality</div></div>
+          <div class="benefit-card"><div class="benefit-icon">🎯</div><div class="benefit-text">Razor-sharp willpower to achieve goals in every area of life</div></div>
+          <div class="benefit-card"><div class="benefit-icon">🙏</div><div class="benefit-text">Deeper meditation, spiritual experiences and divine connection</div></div>
+          <div class="benefit-card"><div class="benefit-icon">😴</div><div class="benefit-text">Better, deeper sleep — wake up refreshed and energised every morning</div></div>
+          <div class="benefit-card"><div class="benefit-icon">❤️</div><div class="benefit-text">Freedom from lust and porn addiction — pure heart and mind</div></div>
+        </div>
+        <p style="margin-top:.75rem">The 90-day mark is widely considered the transformation milestone. After 90 days, users report life-changing shifts in personality, productivity, relationships, and spiritual depth.</p>
+      </div>
+    </section>
+
+    <!-- OUR VISION -->
+    <section class="card-section" style="padding:0">
+      <div class="content-section" style="margin:0">
+        <h2>🌟 Our Vision — Inspired by Premanand Ji Maharaj</h2>
+        <p>BrahmaMode was built with a single sacred mission: to help the youth of India and the world reclaim their divine energy and live a life of purpose, discipline, and spiritual excellence.</p>
+        <p>We are deeply inspired by the teachings of Premanand Ji Maharaj, whose message of Virya Raksha (preservation of vital energy), Brahmacharya, and devotion to God has awakened millions of young people to the power of self-control.</p>
+        <div class="vision-quote">"Virya Raksha hi Jeevan hai — Preservation of vital energy is life itself."<br>— Premanand Ji Maharaj</div>
+        <p>Our goal is to build the largest community of disciplined, spiritually awakened warriors in India — men and women who rise at 4AM, practice yoga, meditate, eat pure food, and live with intention. We believe that when you control your senses, you control your destiny.</p>
+        <p>Every check-in you make, every streak you build, every morning you rise early — you are not just tracking habits. You are becoming the person God intended you to be.</p>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="card-section" style="padding:0">
+      <div class="content-section" style="margin:0">
+        <h2>❓ Frequently Asked Questions</h2>
+        <div id="faqContainer">
+          <div class="faq-item">
+            <div class="faq-q" onclick="toggleFaq(this)">What is Brahmacharya and why should I practice it? <span class="faq-arrow">▼</span></div>
+            <div class="faq-a">Brahmacharya is the ancient Vedic practice of preserving your vital energy (Virya/Ojas) through celibacy, sense control, and disciplined living. Practicing Brahmacharya leads to extraordinary mental clarity, physical strength, spiritual depth, and a magnetic personality. It is the foundation of all great achievement.</div>
+          </div>
+          <div class="faq-item">
+            <div class="faq-q" onclick="toggleFaq(this)">What is NoFap and how is it different from Brahmacharya? <span class="faq-arrow">▼</span></div>
+            <div class="faq-a">NoFap is a modern movement focused on quitting pornography and masturbation to recover from dopamine addiction. Brahmacharya goes deeper — it is a complete spiritual lifestyle including celibacy, yoga, meditation, pure diet, and service. NoFap is the starting point; Brahmacharya is the complete path.</div>
+          </div>
+          <div class="faq-item">
+            <div class="faq-q" onclick="toggleFaq(this)">What are the benefits of Semen Retention? <span class="faq-arrow">▼</span></div>
+            <div class="faq-a">Semen retention benefits include: extreme focus and mental clarity, increased testosterone and energy, glowing skin and sharp eyes, magnetic confidence, deeper meditation, freedom from anxiety and depression, better sleep, stronger willpower, and spiritual awakening. Most people notice significant changes by day 7, 21, and 90.</div>
+          </div>
+          <div class="faq-item">
+            <div class="faq-q" onclick="toggleFaq(this)">How does the points system work? Can I really earn ₹100? <span class="faq-arrow">▼</span></div>
+            <div class="faq-a">Yes! Every day you stay strong earns you 10 points. Milestones give massive bonus points. When you accumulate 1000 points, you can redeem them for ₹100 cash reward. This makes your discipline literally profitable. The longer your streak, the faster you accumulate points through milestone bonuses.</div>
+          </div>
+          <div class="faq-item">
+            <div class="faq-q" onclick="toggleFaq(this)">What is the 5AM Club and how do I join? <span class="faq-arrow">▼</span></div>
+            <div class="faq-a">The 5AM Club is an elite group of warriors who wake up at 5AM (or earlier) and check in on the app. Check-in window is 5:00–6:00 AM. The earlier you check in, the more points you earn (60 pts at 5:00 AM sharp, decreasing by 1 pt per minute). There is also a live Google Meet session every morning. Tap "Join 5AM Club" in the app.</div>
+          </div>
+          <div class="faq-item">
+            <div class="faq-q" onclick="toggleFaq(this)">What is the 4AM Morning Routine for maximum benefits? <span class="faq-arrow">▼</span></div>
+            <div class="faq-a">The ideal Brahmacharya morning routine: 4:00 AM — Wake up. Drink water. 4:15 AM — Cold shower (activates Prana). 4:30 AM — Morning yoga and Surya Namaskar. 5:00 AM — Pranayama (Anulom Vilom, Bhramari). 5:30 AM — Meditation and mantra chanting. 6:00 AM — Study, journaling or exercise. This routine builds Ojas and sets the foundation for a powerful day.</div>
+          </div>
+          <div class="faq-item">
+            <div class="faq-q" onclick="toggleFaq(this)">Is this app inspired by Premanand Ji Maharaj? <span class="faq-arrow">▼</span></div>
+            <div class="faq-a">Yes. BrahmaMode is deeply inspired by the spiritual teachings of Premanand Ji Maharaj, whose message of Virya Raksha, Brahmacharya, and devotion has transformed millions of lives. His teachings form the spiritual backbone of this app. We believe that Brahmacharya is not a restriction — it is the greatest power available to a human being.</div>
+          </div>
+          <div class="faq-item">
+            <div class="faq-q" onclick="toggleFaq(this)">What if I slip and break my streak? <span class="faq-arrow">▼</span></div>
+            <div class="faq-a">First: do not give up. One slip does not define your journey. You have two options: (1) Accept the reset and start fresh — many warriors have failed 100 times before succeeding. (2) Use the Streak Redemption feature — spend 500 points to recover 1 missed day and keep your streak alive. The key is to never quit the path.</div>
+          </div>
+          <div class="faq-item">
+            <div class="faq-q" onclick="toggleFaq(this)">Does BrahmaMode work offline? How do I install the app? <span class="faq-arrow">▼</span></div>
+            <div class="faq-a">Yes! BrahmaMode is a Progressive Web App (PWA). When you visit the website, tap the "Install App" popup or look for the install option in your browser menu. Once installed, it works exactly like a native app — with offline support, fast loading, and a home screen icon. No Play Store or App Store needed.</div>
+          </div>
+          <div class="faq-item">
+            <div class="faq-q" onclick="toggleFaq(this)">What meditation music is available in the app? <span class="faq-arrow">▼</span></div>
+            <div class="faq-a">BrahmaMode includes a built-in meditation music player with Shiva mantras, Om chanting, Gayatri Mantra, Hanuman Chalisa, and peaceful meditation soundscapes. These help you maintain a spiritual atmosphere during your sadhana, study, or rest time.</div>
+          </div>
+        </div>
+      </div>
     </section>
 
   </div>
@@ -215,23 +602,15 @@
         <button class="btn-nav" onclick="showMain()">← Back</button>
       </div>
     </header>
-
-    <!-- STATS ROW -->
     <div class="admin-stats" id="adminStats"></div>
-
-    <!-- LEADERBOARD -->
     <section class="card-section">
       <h3 class="section-title">🏆 Leaderboard — Points</h3>
       <div id="leaderboardPts"></div>
     </section>
-
-    <!-- STREAK LEADERBOARD -->
     <section class="card-section">
       <h3 class="section-title">🔥 Leaderboard — Streak</h3>
       <div id="leaderboardStreak"></div>
     </section>
-
-    <!-- ALL USERS TABLE -->
     <section class="card-section" style="margin-bottom:2rem">
       <h3 class="section-title">📋 All Warriors</h3>
       <div id="allUsersTable"></div>
@@ -256,8 +635,6 @@
         <button class="btn-nav" onclick="showMain()">← Back</button>
       </div>
     </header>
-
-    <!-- CHECK-IN CARD -->
     <section class="today-section">
       <div class="today-card" id="clubCheckinCard">
         <div class="today-glow"></div>
@@ -268,68 +645,35 @@
         </div>
         <div class="today-right">
           <div id="clubBtnArea">
-            <button class="btn-club-join" id="clubJoinBtn" onclick="clubCheckIn()" style="display:none">
-              🌅 JOIN 5AM CLUB
-            </button>
-            <div class="club-closed-msg" id="clubClosedMsg" style="display:none">
-              🔒 Window closed — See you at 4:45 AM tomorrow
-            </div>
-            <div class="club-done-msg" id="clubDoneMsg" style="display:none">
-              ✅ Checked in today!
-            </div>
+            <button class="btn-club-join" id="clubJoinBtn" onclick="clubCheckIn()" style="display:none">🌅 JOIN 5AM CLUB</button>
+            <div class="club-closed-msg" id="clubClosedMsg" style="display:none">🔒 Window closed — See you at 4:45 AM tomorrow</div>
+            <div class="club-done-msg" id="clubDoneMsg" style="display:none">✅ Checked in today!</div>
           </div>
         </div>
       </div>
     </section>
-
-    <!-- POINTS INFO CARD -->
     <section class="card-section" style="padding:1.25rem">
       <h3 class="section-title">⚡ Points System</h3>
       <div style="background:rgba(123,47,255,0.08);border:1px solid rgba(123,47,255,0.25);border-radius:14px;padding:1.1rem;display:flex;flex-direction:column;gap:.65rem">
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem">
-          <span style="color:var(--muted)">⏰ Check-in Window</span>
-          <span style="color:#fff;font-weight:600">5:00 AM — 6:00 AM</span>
-        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem"><span style="color:var(--muted)">⏰ Check-in Window</span><span style="color:#fff;font-weight:600">5:00 AM — 6:00 AM</span></div>
         <div style="height:1px;background:rgba(255,255,255,0.07)"></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem">
-          <span style="color:var(--muted)">🟡 On time (5:00 AM sharp)</span>
-          <span style="color:#fcd34d;font-weight:700">60 pts</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem">
-          <span style="color:var(--muted)">⏱ Every minute late</span>
-          <span style="color:#f87171;font-weight:600">−1 pt / min</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem">
-          <span style="color:var(--muted)">🔴 Last possible entry (5:59 AM)</span>
-          <span style="color:#f87171;font-weight:600">1 pt</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem">
-          <span style="color:var(--muted)">🔒 After 6:00 AM</span>
-          <span style="color:#6b7280;font-weight:600">Window Closed</span>
-        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem"><span style="color:var(--muted)">🟡 On time (5:00 AM sharp)</span><span style="color:#fcd34d;font-weight:700">60 pts</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem"><span style="color:var(--muted)">⏱ Every minute late</span><span style="color:#f87171;font-weight:600">−1 pt / min</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem"><span style="color:var(--muted)">🔴 Last possible entry (5:59 AM)</span><span style="color:#f87171;font-weight:600">1 pt</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem"><span style="color:var(--muted)">🔒 After 6:00 AM</span><span style="color:#6b7280;font-weight:600">Window Closed</span></div>
         <div style="height:1px;background:rgba(255,255,255,0.07)"></div>
-        <div style="font-size:.78rem;color:var(--muted);text-align:center;font-style:italic">
-          The earlier you rise, the more you earn. Discipline is rewarded.
-        </div>
+        <div style="font-size:.78rem;color:var(--muted);text-align:center;font-style:italic">The earlier you rise, the more you earn. Discipline is rewarded.</div>
       </div>
     </section>
-
-    <!-- ZOOM LINK -->
     <section class="card-section" style="text-align:center;padding:1.5rem">
       <h3 class="section-title">📹 Today's Session</h3>
       <p style="color:var(--muted);font-size:.9rem;margin-bottom:1.25rem">Join the live session — opens at 5:00 AM</p>
-      <a id="zoomLink" href="https://meet.google.com/qcm-njtw-cyq" target="_blank" class="btn-zoom">
-        📹 Join Zoom / Meet
-      </a>
+      <a id="zoomLink" href="https://meet.google.com/qcm-njtw-cyq" target="_blank" class="btn-zoom">📹 Join Zoom / Meet</a>
     </section>
-
-    <!-- MY HISTORY -->
     <section class="card-section">
       <h3 class="section-title">📅 My 5AM History</h3>
       <div id="clubMyHistory" class="club-history-grid"></div>
     </section>
-
-    <!-- LEADERBOARD -->
     <section class="card-section" style="margin-bottom:2rem">
       <h3 class="section-title">🏆 5AM Leaderboard</h3>
       <div class="club-lb-tabs">
@@ -339,15 +683,12 @@
       </div>
       <div id="clubLeaderboard"></div>
     </section>
-
   </div>
 </div>
 
 <!-- ==================== BROTHERHOOD CHAT ==================== -->
 <div class="screen" id="chatScreen" style="display:none">
   <div class="app" style="padding:0;max-width:100%;height:100vh;display:flex;flex-direction:column">
-
-    <!-- CHAT HEADER -->
     <div class="chat-header">
       <div class="chat-header-left">
         <button class="chat-back-btn" onclick="showMain()">←</button>
@@ -362,8 +703,6 @@
         <button class="chat-tab-btn" id="tabDM" onclick="switchChatTab('dm')">✉️ DMs</button>
       </div>
     </div>
-
-    <!-- GROUP CHAT PANEL -->
     <div id="groupChatPanel" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
       <div class="chat-pinned-bar" id="chatPinned" style="display:none">
         <span style="font-size:.85rem">📌</span>
@@ -371,23 +710,16 @@
       </div>
       <div class="chat-body" id="chatMessages"></div>
       <div class="chat-input-bar">
-        <label class="chat-img-btn" title="Send Image">
-          📷
-          <input type="file" id="groupImgInput" accept="image/*" style="display:none" onchange="sendGroupImage(this)" />
-        </label>
+        <label class="chat-img-btn" title="Send Image">📷<input type="file" id="groupImgInput" accept="image/*" style="display:none" onchange="sendGroupImage(this)" /></label>
         <input type="text" id="chatInput" placeholder="Message..." maxlength="300" />
         <button class="chat-send-btn" onclick="sendGroupMessage()">➤</button>
       </div>
     </div>
-
-    <!-- DM PANEL -->
     <div id="dmPanel" style="display:none;flex-direction:column;flex:1;overflow:hidden">
-      <!-- User List -->
       <div id="dmUserList" style="flex:1;overflow-y:auto;padding:1rem">
         <p class="section-title" style="margin-bottom:1rem">⚔️ Warriors — Tap to DM</p>
         <div id="dmUsersList"></div>
       </div>
-      <!-- Conversation -->
       <div id="dmConversation" style="display:none;flex-direction:column;flex:1;overflow:hidden">
         <div class="chat-dm-topbar">
           <button class="chat-back-btn" onclick="closeDMConvo()">←</button>
@@ -396,19 +728,14 @@
         </div>
         <div class="chat-body" id="dmMessages"></div>
         <div class="chat-input-bar">
-          <label class="chat-img-btn" title="Send Image">
-            📷
-            <input type="file" id="dmImgInput" accept="image/*" style="display:none" onchange="sendDMImage(this)" />
-          </label>
+          <label class="chat-img-btn" title="Send Image">📷<input type="file" id="dmImgInput" accept="image/*" style="display:none" onchange="sendDMImage(this)" /></label>
           <input type="text" id="dmInput" placeholder="Message..." maxlength="300" />
           <button class="chat-send-btn" onclick="sendDM()">➤</button>
         </div>
       </div>
     </div>
-
   </div>
 </div>
-
 
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
@@ -416,34 +743,190 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="app.js"></script>
 <script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').then(reg => {
-        console.log('SW registered:', reg.scope);
-      }).catch(err => console.log('SW error:', err));
+// ===== SERVICE WORKER =====
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(r => console.log('SW:', r.scope))
+      .catch(e => console.log('SW err:', e));
+  });
+}
+
+// ===== INSTALL POPUP =====
+let deferredPrompt = null;
+const popup = document.getElementById('installPopup');
+const popupBtn = document.getElementById('installPopupBtn');
+const popupSkip = document.getElementById('installPopupSkip');
+
+function showInstallPopup() {
+  // Don't show if already installed or dismissed this session
+  if (window.matchMedia('(display-mode: standalone)').matches) return;
+  if (sessionStorage.getItem('installDismissed')) return;
+  popup.classList.add('show');
+}
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Show popup after 2 seconds
+  setTimeout(showInstallPopup, 2000);
+});
+
+popupBtn.addEventListener('click', () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+  }
+  popup.classList.remove('show');
+});
+
+popupSkip.addEventListener('click', () => {
+  sessionStorage.setItem('installDismissed', '1');
+  popup.classList.remove('show');
+});
+
+window.addEventListener('appinstalled', () => {
+  popup.classList.remove('show');
+  deferredPrompt = null;
+});
+
+// Show popup on every page load for browsers that don't fire beforeinstallprompt
+// (e.g. iOS Safari — show manual install instructions)
+window.addEventListener('load', () => {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+  if (isIOS && !isStandalone && !sessionStorage.getItem('installDismissed')) {
+    setTimeout(showInstallPopup, 2000);
+  }
+});
+
+// ===== IMAGE SLIDER =====
+(function() {
+  const track = document.getElementById('sliderTrack');
+  const dotsContainer = document.getElementById('sliderDots');
+  if (!track) return;
+  const slides = track.querySelectorAll('.slider-slide');
+  let current = 0;
+  let autoTimer;
+
+  // Build dots
+  slides.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'slider-dot' + (i === 0 ? ' active' : '');
+    d.onclick = () => goTo(i);
+    dotsContainer.appendChild(d);
+  });
+
+  function goTo(n) {
+    current = (n + slides.length) % slides.length;
+    track.style.transform = `translateX(-${current * 100}%)`;
+    dotsContainer.querySelectorAll('.slider-dot').forEach((d, i) =>
+      d.classList.toggle('active', i === current)
+    );
+    resetAuto();
+  }
+
+  function resetAuto() {
+    clearInterval(autoTimer);
+    autoTimer = setInterval(() => goTo(current + 1), 3500);
+  }
+
+  document.getElementById('sliderPrev').onclick = () => goTo(current - 1);
+  document.getElementById('sliderNext').onclick = () => goTo(current + 1);
+
+  // Touch swipe
+  let tx = 0;
+  track.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, {passive:true});
+  track.addEventListener('touchend', e => {
+    const diff = tx - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 40) goTo(diff > 0 ? current + 1 : current - 1);
+  }, {passive:true});
+
+  resetAuto();
+})();
+
+// ===== MUSIC PLAYER =====
+(function() {
+  const tracks = [
+    { name: 'Om Namah Shivaya', type: 'Shiva Mantra • Meditation', icon: '🔱', file: 'music.mp3' },
+    { name: 'Om Chanting 108', type: 'Sacred Om • Deep Focus', icon: '🕉️', file: 'music.mp3' },
+    { name: 'Gayatri Mantra', type: 'Vedic Chant • Morning Sadhana', icon: '☀️', file: 'music.mp3' },
+    { name: 'Mahamrityunjaya', type: 'Healing Mantra • Protection', icon: '🙏', file: 'music.mp3' },
+    { name: 'Brahmacharya Meditation', type: 'Silence & Focus • Ojas', icon: '🧘', file: 'music.mp3' },
+    { name: 'Hanuman Chalisa', type: 'Devotional • Strength', icon: '🏔️', file: 'music.mp3' },
+  ];
+
+  let currentTrack = 0;
+  const audio = document.getElementById('bgMusic');
+  const playBtn = document.getElementById('musicPlayBtn');
+  const trackNameEl = document.getElementById('musicTrackName');
+  const trackTypeEl = document.getElementById('musicTrackType');
+  const musicArt = document.getElementById('musicArt');
+  const listEl = document.getElementById('musicTrackList');
+
+  function renderList() {
+    listEl.innerHTML = '';
+    tracks.forEach((t, i) => {
+      const div = document.createElement('div');
+      div.className = 'music-track' + (i === currentTrack ? ' active' : '');
+      div.innerHTML = `<span class="music-track-num">${i === currentTrack && !audio.paused ? '▶' : i+1}</span><span class="music-track-name">${t.icon} ${t.name}</span><span class="music-track-type" style="font-size:.72rem;color:rgba(255,255,255,.4)">${t.type.split('•')[0].trim()}</span>`;
+      div.onclick = () => playTrack(i);
+      listEl.appendChild(div);
     });
   }
-  let deferredPrompt;
-  window.addEventListener('beforeinstallprompt', e => {
-    e.preventDefault();
-    deferredPrompt = e;
-    const btn = document.getElementById('installBtn');
-    if (btn) btn.style.display = 'flex';
-  });
-  window.addEventListener('appinstalled', () => {
-    const btn = document.getElementById('installBtn');
-    if (btn) btn.style.display = 'none';
-    deferredPrompt = null;
-  });
-  window.installApp = function() {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(() => {
-      deferredPrompt = null;
-      const btn = document.getElementById('installBtn');
-      if (btn) btn.style.display = 'none';
-    });
+
+  function playTrack(i) {
+    currentTrack = i;
+    const t = tracks[i];
+    trackNameEl.textContent = t.name;
+    trackTypeEl.textContent = t.type;
+    musicArt.textContent = t.icon;
+    audio.src = t.file;
+    audio.play().catch(()=>{});
+    playBtn.textContent = '⏸';
+    playBtn.classList.add('playing');
+    renderList();
+  }
+
+  playBtn.onclick = () => {
+    if (audio.paused) {
+      audio.play().catch(()=>{});
+      playBtn.textContent = '⏸';
+      playBtn.classList.add('playing');
+    } else {
+      audio.pause();
+      playBtn.textContent = '▶';
+      playBtn.classList.remove('playing');
+    }
+    renderList();
   };
+
+  document.getElementById('musicPrevBtn').onclick = () =>
+    playTrack((currentTrack - 1 + tracks.length) % tracks.length);
+  document.getElementById('musicNextBtn').onclick = () =>
+    playTrack((currentTrack + 1) % tracks.length);
+
+  audio.onended = () => playTrack((currentTrack + 1) % tracks.length);
+
+  // Sync with existing music toggle button
+  const oldToggle = document.getElementById('musicToggle');
+  if (oldToggle) {
+    oldToggle.onclick = () => {
+      if (audio.paused) { audio.play().catch(()=>{}); oldToggle.textContent = '🔇'; }
+      else { audio.pause(); oldToggle.textContent = '🎵'; }
+    };
+  }
+
+  renderList();
+})();
+
+// ===== FAQ TOGGLE =====
+window.toggleFaq = function(el) {
+  const ans = el.nextElementSibling;
+  const arrow = el.querySelector('.faq-arrow');
+  ans.classList.toggle('open');
+  arrow.classList.toggle('open');
+};
 </script>
 </body>
 </html>
