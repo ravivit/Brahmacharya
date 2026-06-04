@@ -18,7 +18,8 @@ const CHALLENGES = [
   { id:'c7',  days:7,  label:'Tapasvi',     icon:'🥈', bracket:'Discipline Forged', metal:'Silver'   },
   { id:'c15', days:15, label:'Dhira',       icon:'🥇', bracket:'Positive Aura',     metal:'Gold'     },
   { id:'c21', days:21, label:'Vira',        icon:'💎', bracket:'Disciplined Aura',  metal:'Diamond'  },
-  { id:'c30', days:30, label:'Ojas',        icon:'✨', bracket:'Powerful Aura',     metal:'Kohinoor' },
+{ id:'c30', days:30, label:'Ojas',        icon:'✨', bracket:'Powerful Aura',     metal:'Kohinoor' },
+  { id:'c50', days:50, label:'Agni',        icon:'🔱', bracket:'Inner Fire',        metal:'Titanium' },
   { id:'c90', days:90, label:'Brahmachari', icon:'👑', bracket:'Powerful Man',      metal:'Crown'    },
 ];
 
@@ -285,8 +286,8 @@ function renderHeader() {
   el('avatarEl').textContent     = profile.name.charAt(0).toUpperCase();
   el('headerStreak').textContent = currentStreak;
   el('headerPoints').textContent = totalPoints;
-el('headerDay').textContent    = profile.startDate ? Math.max(1, daysFrom(profile.startDate)) : 1;
-el('headerBest').textContent   = Math.max(...streakHistory.map(s=>s.length), 0);
+if(el('headerDay')) el('headerDay').textContent = profile.startDate ? Math.max(1, daysFrom(profile.startDate)) : 1;
+if(el('headerBest')) el('headerBest').textContent = streakHistory.length ? Math.max(...streakHistory.map(s=>s.length)) : 0;
 }
 
 // ============================================================
@@ -384,12 +385,14 @@ function calPrevMonth() {
   if (calViewMonth < 0) { calViewMonth = 11; calViewYear--; }
   renderCalendar();
 }
+window.calPrevMonth = calPrevMonth;
 
 function calNextMonth() {
   calViewMonth++;
   if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; }
   renderCalendar();
 }
+window.calNextMonth = calNextMonth;
 
 function renderCalendar() {
   const grid = el('calendarGrid');
@@ -496,8 +499,6 @@ function renderAll() {
   computeStats();
   renderHeader();
   renderToday();
-  renderTriggers();
-  renderStreakHistory();
   renderChallenges();
   renderCalendar();
   renderMotivation();
@@ -817,18 +818,19 @@ async function init() {
     if(confirm('Sure? This will break your streak.')) checkIn('missed');
   });
 
-  // Triggers
-  el('addTriggerBtn').addEventListener('click', async()=>{
-    const val = el('triggerInput').value.trim();
-    if(!val) return;
-    if(triggers.includes(val)){showToast('Already added!');return;}
-    triggers.push(val);
-    await saveTriggers();
-    el('triggerInput').value='';
-    renderTriggers();
-    showToast(`⚠️ Trigger: "${val}"`);
-  });
-  el('triggerInput').addEventListener('keydown',e=>{if(e.key==='Enter')el('addTriggerBtn').click();});
+  // Triggers (optional — if elements exist)
+  if(el('addTriggerBtn')) {
+    el('addTriggerBtn').addEventListener('click', async()=>{
+      const val = el('triggerInput').value.trim();
+      if(!val) return;
+      if(triggers.includes(val)){showToast('Already added!');return;}
+      triggers.push(val);
+      await saveTriggers();
+      el('triggerInput').value='';
+      showToast(`⚠️ Trigger: "${val}"`);
+    });
+    el('triggerInput').addEventListener('keydown',e=>{if(e.key==='Enter')el('addTriggerBtn').click();});
+  }
 
   // Music
   el('musicToggle').addEventListener('click', toggleMusic);
@@ -838,6 +840,8 @@ async function init() {
 }
 
 document.addEventListener('DOMContentLoaded', ()=>setTimeout(init,150));
+
+// (global exports at end of file)
 
 
 
@@ -856,17 +860,14 @@ const CLUB_ZOOM_LINK = 'https://meet.google.com/qcm-njtw-cyq'; // <-- apna link 
 let clubActiveTab = 'streak';
 
 function showClub() {
-  document.getElementById('mainScreen').style.display = 'none';
-  document.getElementById('adminScreen').style.display = 'none';
-  document.getElementById('clubScreen').style.display = 'block';
+  showScreen('clubScreen');
+  document.getElementById('zoomLink').href = CLUB_ZOOM_LINK;
   initClubClock();
   loadClubData();
 }
 
 function showMain() {
-  document.getElementById('clubScreen').style.display = 'none';
-  document.getElementById('adminScreen').style.display = 'none';
-  document.getElementById('mainScreen').style.display = 'block';
+  showScreen('mainScreen');
 }
 
 // Live clock
@@ -1651,3 +1652,19 @@ document.addEventListener('keydown', e => {
   if (active?.id === 'chatInput') sendGroupMessage();
   if (active?.id === 'dmInput') sendDM();
 });
+// ============================================================
+// GLOBAL WINDOW EXPORTS (must be at end — all functions defined above)
+// ============================================================
+window.showClub        = function(){ showScreen('clubScreen'); if(document.getElementById('zoomLink')) document.getElementById('zoomLink').href=CLUB_ZOOM_LINK; initClubClock(); loadClubData(); };
+window.showChat        = showChat;
+window.switchClubTab   = function(t){ clubActiveTab=t; loadClubLeaderboard(); };
+window.clubCheckIn     = clubCheckIn;
+window.sendGroupMessage= sendGroupMessage;
+window.sendDM          = sendDM;
+window.switchDMTab     = typeof switchDMTab !== 'undefined' ? switchDMTab : function(){};
+window.showAdmin     = showAdmin;
+window.showMain      = function(){ showScreen('mainScreen'); };
+window.switchTab     = switchTab;
+window.redeemStreak  = redeemStreak;
+window.toggleMusic   = toggleMusic;
+window.forgotPassword= forgotPassword;
