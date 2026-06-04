@@ -18,10 +18,8 @@
 <body>
 
 <audio id="bgMusic" loop>
-  <source src="https://cdn.freesound.org/previews/398/398937_5121236-lq.mp3" type="audio/mpeg" />
-  <source src="https://cdn.freesound.org/previews/612/612458_5674468-lq.mp3" type="audio/mpeg" />
+  <source src="music.mp3" type="audio/mpeg" />
 </audio>
-
 <button class="install-btn" id="installBtn" onclick="installApp()" title="Install App" style="display:none">
   📲 Install App
 </button>
@@ -54,7 +52,6 @@
       <button class="btn-primary" id="loginBtn">🔥 LOGIN</button>
       <p class="auth-err" id="loginErr"></p>
     </div>
-
 
     <p style="text-align:center;margin-top:.5rem">
   <a href="#" onclick="forgotPassword()" style="color:var(--purple-glow);font-size:.85rem">Forgot Password?</a>
@@ -94,28 +91,39 @@
 
     <!-- HEADER -->
     <header class="header">
-      <div class="header-left">
+      <!-- Row 1: Avatar + Name + Logout -->
+      <div class="hdr-row1">
         <div class="avatar" id="avatarEl"></div>
-        <div class="header-info">
+        <div class="hdr-name-block">
           <h1 class="warrior-name" id="warriorName"></h1>
-         <p class="warrior-goal" id="warriorGoal"></p>
-<button class="btn-join-club" onclick="showClub()">🌅 Join 5AM Club</button>
-
-
+          <p class="warrior-goal" id="warriorGoal"></p>
+          <button class="btn-join-club" onclick="showClub()">🌅 Join 5AM Club</button>
+        </div>
+        <button class="btn-logout" id="logoutBtn" title="Logout">🚪</button>
+      </div>
+      <!-- Row 2: Stats -->
+      <div class="hdr-stats">
+        <div class="hdr-stat">
+          <span class="hdr-stat-val" id="headerStreak">0</span>
+          <span class="hdr-stat-label">🔥 Streak</span>
+        </div>
+        <div class="hdr-stat-divider"></div>
+        <div class="hdr-stat">
+          <span class="hdr-stat-val" id="headerPoints">0</span>
+          <span class="hdr-stat-label">⚡ Points</span>
+        </div>
+        <div class="hdr-stat-divider"></div>
+        <div class="hdr-stat">
+          <span class="hdr-stat-val" id="headerBest">0</span>
+          <span class="hdr-stat-label">🏆 Best</span>
         </div>
       </div>
-      <div class="header-right">
-        <div class="stat-pill"><span class="stat-label">🔥 Streak</span><span class="stat-val" id="headerStreak">0</span></div>
-        <div class="stat-pill"><span class="stat-label">⚡ Points</span><span class="stat-val" id="headerPoints">0</span></div>
-       <div class="stat-pill"><span class="stat-label">📅 Day</span><span class="stat-val" id="headerDay">1</span></div>
-<div class="stat-pill"><span class="stat-label">🏆 Best</span><span class="stat-val" id="headerBest">0</span></div>
-        <button class="btn-nav" onclick="showClub()" title="5AM Club">🌅</button>
-       <button class="btn-nav-text" id="adminBtn" onclick="showAdmin()">🏆 Leaderboard</button>
- 
-<button class="btn-nav chat-notify-btn" onclick="showChat()" title="Brotherhood Chat" style="font-size:1.2rem">
-  💬<span class="chat-unread-dot" id="chatUnreadDot" style="display:none"></span>
-</button>
-<button class="btn-nav" id="logoutBtn" title="Logout">🚪</button>
+      <!-- Row 3: Actions -->
+      <div class="hdr-actions">
+        <button class="hdr-btn-lb" id="adminBtn" onclick="showAdmin()">🏆 Leaderboard</button>
+        <button class="hdr-btn-community chat-notify-btn" onclick="showChat()">
+          🏘️ Community<span class="chat-unread-dot" id="chatUnreadDot" style="display:none"></span>
+        </button>
       </div>
     </header>
 
@@ -133,24 +141,12 @@
           <button class="btn-missed" id="btnMissed">💀 MISSED — I Slipped</button>
         </div>
       </div>
-      <div class="trigger-section">
-        <h3 class="section-title">⚠️ My Trigger Points</h3>
-        <div class="triggers-list" id="triggersList"></div>
-        <div class="trigger-add">
-          <input type="text" id="triggerInput" placeholder="Add a trigger (e.g. Late night phone use)..." />
-          <button class="btn-add-trigger" id="addTriggerBtn">+ Add</button>
-        </div>
-      </div>
-    </section>
 
-    <!-- STREAK HISTORY -->
-    <section class="card-section">
-      <h3 class="section-title">🏆 Streak History</h3>
-      <div class="streak-history" id="streakHistory"></div>
     </section>
 
 
-     <!-- CALENDAR -->
+
+    <!-- CALENDAR -->
     <section class="card-section">
       <h3 class="section-title">📅 My Journey Calendar</h3>
       <div class="calendar-nav">
@@ -163,14 +159,13 @@
 
     <!-- CHALLENGES -->
     <section class="card-section">
-      <h3 class="section-title">⚔️ Challenges</h3>
+      <h3 class="section-title">⚔️ Challenges & Badges</h3>
       <div class="challenges-grid" id="challengesGrid"></div>
     </section>
 
     <!-- POINTS -->
     <section class="card-section">
       <h3 class="section-title">💎 Points System</h3>
-      <!-- Buddha + peaceful quote -->
       <div class="buddha-banner">
         <div class="buddha-statue">🧘</div>
         <div class="buddha-text">
@@ -178,7 +173,7 @@
           <div class="buddha-sub">— Brahmacharya is the path to liberation</div>
         </div>
       </div>
-      <div class="points-grid">
+   <div class="points-grid">
         <div class="point-card"><span class="pc-label">Daily</span><span class="pc-val">+10 pts</span></div>
         <div class="point-card milestone-card"><span class="pc-label">3-Day (Lv1)</span><span class="pc-val">+30 pts<span class="pc-bonus">+30 bonus = 60 total</span></span></div>
         <div class="point-card milestone-card"><span class="pc-label">7-Day (Lv2)</span><span class="pc-val">+70 pts<span class="pc-bonus">+140 bonus = 210 total</span></span></div>
@@ -186,15 +181,13 @@
         <div class="point-card milestone-card"><span class="pc-label">21-Day (Lv4)</span><span class="pc-val">+210 pts<span class="pc-bonus">+840 bonus</span></span></div>
         <div class="point-card milestone-card"><span class="pc-label">30-Day (Lv5)</span><span class="pc-val">+300 pts<span class="pc-bonus">+1500 bonus</span></span></div>
         <div class="point-card milestone-card"><span class="pc-label">90-Day (Lv6)</span><span class="pc-val">+900 pts<span class="pc-bonus">+5400 bonus</span></span></div>
-        <div class="point-card highlight"><span class="pc-label">500+ Pts</span><span class="pc-val">MTV 2× Mode</span></div>
       </div>
-      <!-- Streak Redemption -->
       <div class="redeem-section">
         <div class="redeem-info">
           <span class="redeem-icon">🔄</span>
           <div>
             <div class="redeem-title">Streak Redemption</div>
-            <div class="redeem-desc">Spend <strong>500 pts</strong> → Recover 1 missed day → Streak continues! (calendar pe 🔄 gold dikhega)</div>
+            <div class="redeem-desc">Spend <strong>500 pts</strong> → Recover 1 missed day → Streak continues!</div>
           </div>
         </div>
         <button class="btn-redeem" onclick="redeemStreak()">🔄 Redeem (500 pts)</button>
