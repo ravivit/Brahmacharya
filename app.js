@@ -1665,6 +1665,7 @@ window.switchDMTab     = typeof switchDMTab !== 'undefined' ? switchDMTab : func
 window.showAdmin     = showAdmin;
 window.showMain      = function(){ showScreen('mainScreen'); };
 window.switchTab     = switchTab;
+window.checkIn       = checkIn;
 window.redeemStreak  = redeemStreak;
 window.toggleMusic   = toggleMusic;
 window.forgotPassword= forgotPassword;
