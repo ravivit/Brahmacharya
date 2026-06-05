@@ -745,8 +745,16 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="app.js"></script>
+<script>
+// Load Supabase — cache fallback for offline
+(function() {
+  var s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+  s.onerror = function() { console.warn('Supabase CDN failed — offline mode'); };
+  document.head.appendChild(s);
+})();
+</script>
+<script src="app.js" defer></script>
 <script>
 // ===== SERVICE WORKER =====
 if ('serviceWorker' in navigator) {
