@@ -2,7 +2,7 @@
   "name": "Brahmacharya Tracker",
   "short_name": "Brahmacharya",
   "description": "Master yourself. Track your Brahmacharya journey.",
-  "start_url": "/index.html",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0010",
   "theme_color": "#7b2fff",
