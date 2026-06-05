@@ -1782,3 +1782,4 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', e => {
     if (e.data && e.data.type === 'FLUSH_OFFLINE_QUEUE') flushOfflineQueue();
   });
+}
