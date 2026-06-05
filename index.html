@@ -933,5 +933,191 @@ window.toggleFaq = function(el) {
   arrow.classList.toggle('open');
 };
 </script>
+
+<script>
+/* ============================================================
+   BRAHMAMODE — OFFLINE CHECK-IN SUPPORT
+   Works on iPad/Mac/Android with no internet.
+   Check-ins saved to localStorage, auto-sync when net returns.
+   ============================================================ */
+
+// ── 1. Register Service Worker ────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => {
+        console.log('[BM] SW registered');
+        // If there's a queued sync pending, register it
+        if ('SyncManager' in window) {
+          reg.sync.register('bm-sync-checkins').catch(() => {});
+        }
+      })
+      .catch(err => console.warn('[BM] SW failed:', err));
+  });
+
+  // SW tells us to flush when back online
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data && e.data.type === 'FLUSH_OFFLINE_QUEUE') {
+      bmFlushQueue();
+    }
+  });
+}
+
+// ── 2. LocalStorage queue helpers ────────────────────────────
+const BM_QUEUE_KEY = 'bm_offline_checkin_queue';
+
+function bmGetQueue() {
+  try { return JSON.parse(localStorage.getItem(BM_QUEUE_KEY) || '[]'); }
+  catch (e) { return []; }
+}
+function bmSaveQueue(q) {
+  localStorage.setItem(BM_QUEUE_KEY, JSON.stringify(q));
+}
+function bmPushQueue(dateStr, status) {
+  const q = bmGetQueue();
+  const idx = q.findIndex(i => i.date === dateStr);
+  if (idx >= 0) q[idx].status = status;
+  else q.push({ date: dateStr, status, ts: Date.now() });
+  bmSaveQueue(q);
+  console.log('[BM] Queued offline:', dateStr, status);
+}
+
+// ── 3. Flush queue to Supabase ────────────────────────────────
+async function bmFlushQueue() {
+  if (!window.sb || !window.currentUser) return;
+  const q = bmGetQueue();
+  if (!q.length) return;
+
+  console.log('[BM] Flushing', q.length, 'offline check-in(s)');
+  const synced = [];
+
+  for (const item of q) {
+    try {
+      const { error } = await window.sb
+        .from('bct_logs')
+        .upsert(
+          { user_id: window.currentUser.id, date: item.date, status: item.status },
+          { onConflict: 'user_id,date' }
+        );
+      if (!error) {
+        synced.push(item.date);
+        if (window.logs) window.logs[item.date] = item.status;
+        console.log('[BM] Synced:', item.date);
+      }
+    } catch (err) {
+      console.warn('[BM] Sync failed:', item.date, err);
+    }
+  }
+
+  // Remove synced items from queue
+  bmSaveQueue(q.filter(i => !synced.includes(i.date)));
+
+  if (synced.length > 0) {
+    if (typeof renderAll === 'function') renderAll();
+    if (typeof showToast === 'function')
+      showToast('🔄 ' + synced.length + ' offline check-in(s) synced!', 4000);
+  }
+}
+
+// ── 4. Patch window.checkIn for offline ──────────────────────
+// Wait for app.js to define checkIn, then wrap it
+(function waitAndPatch() {
+  if (typeof window.checkIn !== 'function') {
+    setTimeout(waitAndPatch, 150);
+    return;
+  }
+
+  const _orig = window.checkIn;
+
+  window.checkIn = async function(status) {
+    if (navigator.onLine) {
+      // Online — normal Supabase flow
+      return _orig(status);
+    }
+
+    // ── OFFLINE PATH ─────────────────────────────────────────
+    const dateStr = window.todayStr;
+    if (!dateStr) return;
+
+    // Already logged today?
+    if (window.logs && window.logs[dateStr]) return;
+
+    // Save to in-memory logs so UI updates immediately
+    if (window.logs) window.logs[dateStr] = status;
+
+    // Save to localStorage queue
+    bmPushQueue(dateStr, status);
+
+    // Update UI
+    if (typeof renderAll === 'function') renderAll();
+
+    // Show toast
+    if (typeof showToast === 'function') {
+      if (status === 'done') {
+        showToast('✅ Saved offline! Auto-syncs when net returns 📶', 4000);
+        if (typeof triggerConfetti === 'function') triggerConfetti();
+      } else {
+        showToast('💀 Saved offline! Auto-syncs when net returns 📶', 4000);
+      }
+    }
+
+    // Register background sync (Android Chrome supports this)
+    if ('serviceWorker' in navigator && 'SyncManager' in window) {
+      navigator.serviceWorker.ready
+        .then(reg => reg.sync.register('bm-sync-checkins'))
+        .catch(() => {});
+    }
+  };
+
+  console.log('[BM] checkIn patched for offline support ✅');
+})();
+
+// ── 5. Auto flush when connection returns ─────────────────────
+window.addEventListener('online', async () => {
+  bmUpdateBanner();
+  // Small delay so Supabase client is ready
+  setTimeout(bmFlushQueue, 1500);
+});
+window.addEventListener('offline', bmUpdateBanner);
+
+// Also flush 3s after page load (catches missed syncs)
+window.addEventListener('load', () => {
+  if (navigator.onLine) setTimeout(bmFlushQueue, 3000);
+});
+
+// ── 6. Red offline banner ─────────────────────────────────────
+function bmUpdateBanner() {
+  let b = document.getElementById('bmOfflineBanner');
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'bmOfflineBanner';
+    b.style.cssText = [
+      'display:none',
+      'position:fixed',
+      'top:0','left:0','right:0',
+      'z-index:99999',
+      'background:#dc2626',
+      'color:#fff',
+      'text-align:center',
+      'padding:9px 16px',
+      'font-size:.82rem',
+      'font-weight:700',
+      'letter-spacing:.3px',
+      'box-shadow:0 2px 10px rgba(0,0,0,.5)'
+    ].join(';');
+    document.body.prepend(b);
+  }
+  if (!navigator.onLine) {
+    b.textContent = '📵 Offline — check-ins saved locally, will auto-sync when internet returns';
+    b.style.display = 'block';
+  } else {
+    b.style.display = 'none';
+  }
+}
+
+// Run once immediately
+bmUpdateBanner();
+</script>
+
 </body>
 </html>
