@@ -96,9 +96,40 @@ function initSB() {
       sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       console.log('✅ Supabase ready');
     } else {
-      console.warn('Supabase CDN not loaded');
+      console.warn('Supabase CDN not loaded — offline mode');
     }
   } catch(e) { console.error('Supabase init error:', e); }
+}
+
+// Save full app data to localStorage after every successful load
+function cacheAppData() {
+  try {
+    if (profile) localStorage.setItem('bm_profile', JSON.stringify(profile));
+    if (Object.keys(logs).length) localStorage.setItem('bm_logs', JSON.stringify(logs));
+    if (triggers.length) localStorage.setItem('bm_triggers', JSON.stringify(triggers));
+    if (currentUser) localStorage.setItem('bm_user', JSON.stringify({ id: currentUser.id, email: currentUser.email }));
+  } catch(e) {}
+}
+
+// Load cached app data from localStorage (offline fallback)
+function loadCachedAppData() {
+  try {
+    const u = localStorage.getItem('bm_user');
+    const p = localStorage.getItem('bm_profile');
+    const l = localStorage.getItem('bm_logs');
+    const t = localStorage.getItem('bm_triggers');
+    if (u) currentUser = JSON.parse(u);
+    if (p) profile = JSON.parse(p);
+    if (l) {
+      logs = JSON.parse(l);
+      redemptions = {};
+      Object.entries(logs).forEach(([date, status]) => {
+        if (status === 'redeemed') redemptions[date] = true;
+      });
+    }
+    if (t) triggers = JSON.parse(t);
+    return !!(currentUser && profile);
+  } catch(e) { return false; }
 }
 
 // ============================================================
@@ -204,6 +235,7 @@ async function onLogin(user) {
   const { data: tRow } = await sb.from('bct_triggers').select('*').eq('user_id', user.id).maybeSingle();
   triggers = tRow && tRow.triggers ? tRow.triggers : [];
 
+  cacheAppData(); // save for offline use
   showScreen('mainScreen');
   renderAll();
 }
@@ -213,7 +245,21 @@ async function onLogin(user) {
 // ============================================================
 async function saveLog(dateStr, status) {
   logs[dateStr] = status;
-  await sb.from('bct_logs').upsert({ user_id: currentUser.id, date: dateStr, status }, { onConflict: 'user_id,date' });
+  localStorage.setItem('bm_logs', JSON.stringify(logs)); // always save locally
+  if (!navigator.onLine || !sb) {
+    // Queue for sync later
+    const q = JSON.parse(localStorage.getItem('bm_offline_queue') || '[]');
+    q.push({ user_id: currentUser.id, date: dateStr, status, ts: Date.now() });
+    localStorage.setItem('bm_offline_queue', JSON.stringify(q));
+    return;
+  }
+  try {
+    await sb.from('bct_logs').upsert({ user_id: currentUser.id, date: dateStr, status }, { onConflict: 'user_id,date' });
+  } catch(e) {
+    const q = JSON.parse(localStorage.getItem('bm_offline_queue') || '[]');
+    q.push({ user_id: currentUser.id, date: dateStr, status, ts: Date.now() });
+    localStorage.setItem('bm_offline_queue', JSON.stringify(q));
+  }
 }
 
 async function saveTriggers() {
@@ -780,7 +826,14 @@ async function init() {
   initParticles();
 
   if (!sb) {
-    el('loginErr').textContent = '❌ Supabase failed to load. Check internet & reload.';
+    // Offline — try cached data
+    if (loadCachedAppData()) {
+      showScreen('mainScreen');
+      renderAll();
+      showToast('📵 Offline mode — data from last session', 4000);
+    } else {
+      el('loginErr').textContent = '❌ No internet & no cached session. Please connect once to login.';
+    }
     return;
   }
 
@@ -839,7 +892,7 @@ async function init() {
   setInterval(renderMotivation, 30000);
 }
 
-document.addEventListener('DOMContentLoaded', ()=>setTimeout(init,150));
+document.addEventListener('DOMContentLoaded', ()=>setTimeout(async()=>{ await init(); if(navigator.onLine) flushOfflineQueue(); },150));
 
 // (global exports at end of file)
 
@@ -983,11 +1036,28 @@ async function clubCheckIn() {
   const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
   const dateStr = getTodayStr();
 
-  const already = await hasClubCheckinToday(dateStr);
-  if (already) { showToast('✅ Already checked in today!'); return; }
+  const offlineKey = `bm_club_${dateStr}`;
+  const alreadyLocal = localStorage.getItem(offlineKey);
+  if (alreadyLocal) { showToast('✅ Already checked in today!'); return; }
+
+  if (navigator.onLine && sb) {
+    const already = await hasClubCheckinToday(dateStr);
+    if (already) { showToast('✅ Already checked in today!'); return; }
+  }
 
   const joinBtn = document.getElementById('clubJoinBtn');
   if (joinBtn) { joinBtn.disabled = true; joinBtn.textContent = '⏳ Saving...'; }
+
+  localStorage.setItem(offlineKey, JSON.stringify({ time: timeStr, points }));
+
+  if (!navigator.onLine || !sb) {
+    const q = JSON.parse(localStorage.getItem('bm_club_queue') || '[]');
+    q.push({ user_id: currentUser.id, checkin_date: dateStr, checkin_time: timeStr, points });
+    localStorage.setItem('bm_club_queue', JSON.stringify(q));
+    showToast(`📵 Offline — attendance saved! Syncs when online (+${points} pts)`, 4000);
+    if (joinBtn) { joinBtn.disabled = true; joinBtn.textContent = '✅ DONE (offline)'; }
+    return;
+  }
 
   const { error } = await sb.from('club_checkins').insert({
     user_id: currentUser.id,
@@ -1008,7 +1078,7 @@ async function clubCheckIn() {
 }
 
 async function loadClubData() {
-  if (!currentUser) return;
+  if (!currentUser || !sb || !navigator.onLine) return;
   await Promise.all([
     loadMyClubHistory(),
     loadClubLeaderboard()
@@ -1016,6 +1086,7 @@ async function loadClubData() {
 }
 
 async function loadMyClubHistory() {
+  if (!sb || !navigator.onLine) return;
   const { data } = await sb
     .from('club_checkins')
     .select('checkin_date, checkin_time, points')
@@ -1059,6 +1130,7 @@ async function loadMyClubHistory() {
 }
 
 async function loadClubLeaderboard() {
+  if (!sb || !navigator.onLine) return;
   const { data } = await sb
     .from('club_checkins')
     .select('user_id, checkin_date, checkin_time, points');
@@ -1343,6 +1415,7 @@ function subscribeGroupChat() {
 }
 
 async function sendGroupMessage() {
+  if (!sb || !navigator.onLine) { showToast("📵 Offline — chat unavailable"); return; }
   const input = document.getElementById('chatInput');
   const msg = input?.value?.trim();
   if (!msg || !currentUser) return;
@@ -1574,6 +1647,7 @@ function subscribeDMChat() {
 }
 
 async function sendDM() {
+  if (!sb || !navigator.onLine) { showToast("📵 Offline — chat unavailable"); return; }
   const input = document.getElementById('dmInput');
   const msg = input?.value?.trim();
   if (!msg || !currentUser || !dmWithUserId) return;
@@ -1669,3 +1743,42 @@ window.checkIn       = checkIn;
 window.redeemStreak  = redeemStreak;
 window.toggleMusic   = toggleMusic;
 window.forgotPassword= forgotPassword;
+
+// ── Offline queue flush ───────────────────────────────────────
+async function flushOfflineQueue() {
+  if (!sb || !currentUser) return;
+  let synced = 0;
+  // Streak check-ins
+  try {
+    const q = JSON.parse(localStorage.getItem('bm_offline_queue') || '[]');
+    const mine = q.filter(r => r.user_id === currentUser.id);
+    for (const r of mine) {
+      await sb.from('bct_logs').upsert({ user_id: r.user_id, date: r.date, status: r.status }, { onConflict: 'user_id,date' });
+      synced++;
+    }
+    if (mine.length) localStorage.removeItem('bm_offline_queue');
+  } catch(e) {}
+  // 5AM club check-ins
+  try {
+    const cq = JSON.parse(localStorage.getItem('bm_club_queue') || '[]');
+    const cmine = cq.filter(r => r.user_id === currentUser.id);
+    for (const r of cmine) {
+      await sb.from('club_checkins').insert({ user_id: r.user_id, checkin_date: r.checkin_date, checkin_time: r.checkin_time, points: r.points });
+      synced++;
+    }
+    if (cmine.length) localStorage.removeItem('bm_club_queue');
+  } catch(e) {}
+  if (synced) showToast(`✅ ${synced} offline record${synced>1?'s':''} synced!`);
+}
+
+// Auto-flush when back online
+window.addEventListener('online', async () => {
+  showToast('🌐 Back online — syncing...', 2000);
+  await flushOfflineQueue();
+});
+
+// SW message for background sync
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data && e.data.type === 'FLUSH_OFFLINE_QUEUE') flushOfflineQueue();
+  });
