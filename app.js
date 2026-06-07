@@ -558,17 +558,163 @@ async function checkIn(status) {
   await saveLog(todayStr, status);
   if (status === 'done') {
     computeStats();
-    showToast('✅ Logged! You stayed strong! +10 pts', 4000);
-    CHALLENGES.forEach(ch => {
-      if (currentStreak === ch.days)
-        setTimeout(()=>showToast(`🏅 ${ch.label} Challenge Complete! +${ch.multiplier*10} bonus pts!`,4000),2000);
-    });
-    if (totalPoints >= 50) setTimeout(()=>showToast('⚡ MTV Bonus Active — Double Points!',3000),4500);
     triggerConfetti();
+    showCheckinPopup();
   } else {
     showToast('💀 Logged. Tomorrow is a new battle. Rise again!', 4000);
   }
   renderAll();
+}
+
+// ============================================================
+// STREAK POPUP — Leetcode style
+// ============================================================
+async function showCheckinPopup() {
+  // Remove any existing popup
+  const existing = document.getElementById('streakPopupOverlay');
+  if (existing) existing.remove();
+
+  const MILESTONES      = {3:'🏅',7:'🥈',15:'🥇',21:'💎',30:'✨',50:'🔱',90:'👑'};
+  const MILESTONE_NAMES = {3:'Arambha',7:'Tapasvi',15:'Dhira',21:'Vira',30:'Ojas',50:'Agni',90:'Brahmachari'};
+  const MILESTONE_METAL = {3:'Bronze',7:'Silver',15:'Gold',21:'Diamond',30:'Kohinoor',50:'Titanium',90:'Crown'};
+  const MILESTONE_BONUS = {3:30,7:140,15:450,21:840,30:1500,50:2500,90:4860};
+  const MILESTONE_BRACKET = {3:'Stay Consistent',7:'Discipline Forged',15:'Positive Aura',21:'Disciplined Aura',30:'Powerful Aura',50:'Inner Fire',90:'Powerful Man'};
+
+  const isMilestone = currentStreak in MILESTONES;
+  const ms = isMilestone ? {
+    icon: MILESTONES[currentStreak],
+    name: MILESTONE_NAMES[currentStreak],
+    metal: MILESTONE_METAL[currentStreak],
+    bonus: MILESTONE_BONUS[currentStreak],
+    bracket: MILESTONE_BRACKET[currentStreak]
+  } : null;
+
+  // Fetch current rank
+  let currentRank = '—';
+  try {
+    if (sb && navigator.onLine) {
+      const [{ data: profiles }, { data: allLogs }] = await Promise.all([
+        sb.from('bct_profiles').select('user_id,startDate'),
+        sb.from('bct_logs').select('user_id,date,status')
+      ]);
+      if (profiles && allLogs) {
+        const logsByUser = {};
+        allLogs.forEach(r => {
+          if (!logsByUser[r.user_id]) logsByUser[r.user_id] = {};
+          logsByUser[r.user_id][r.date] = r.status;
+        });
+        const ranked = profiles
+          .map(p => ({ uid: p.user_id, pts: computeUserStats(p, logsByUser[p.user_id] || {}).totalPoints }))
+          .sort((a, b) => b.pts - a.pts);
+        const idx = ranked.findIndex(r => r.uid === currentUser.id);
+        if (idx >= 0) currentRank = `#${idx + 1}`;
+      }
+    }
+  } catch(e) {}
+
+  const quote = MOTIVATIONS[Math.floor(Math.random() * MOTIVATIONS.length)];
+  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const dateLabel = `${dayNames[today.getDay()]}, ${today.getDate()} ${today.toLocaleString('default',{month:'long'})} ${today.getFullYear()}`;
+  const bestStreak = streakHistory.length ? Math.max(...streakHistory.map(s => s.length)) : currentStreak;
+
+  // ── Coin SVG (normal day) ──────────────────────────────────
+  const coinHTML = `
+    <div class="sp-coin-wrap">
+      <div class="sp-coin">
+        <svg viewBox="0 0 100 100" width="100" height="100">
+          <defs>
+            <radialGradient id="cg" cx="40%" cy="35%">
+              <stop offset="0%" stop-color="#fde68a"/>
+              <stop offset="60%" stop-color="#f59e0b"/>
+              <stop offset="100%" stop-color="#92400e"/>
+            </radialGradient>
+            <filter id="cglow">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <circle cx="50" cy="50" r="46" fill="#92400e"/>
+          <circle cx="50" cy="50" r="42" fill="url(#cg)" filter="url(#cglow)"/>
+          <text x="50" y="57" text-anchor="middle" font-size="32" font-weight="900" fill="#92400e" font-family="serif">🔱</text>
+          <circle cx="72" cy="28" r="5" fill="rgba(255,255,255,0.5)"/>
+        </svg>
+      </div>
+      <div class="sp-pts-today">+10 pts earned today</div>
+    </div>`;
+
+  // ── Medal (milestone day) ──────────────────────────────────
+  const medalHTML = `
+    <div class="sp-medal-wrap">
+      <div class="sp-medal-icon">${ms?.icon}</div>
+      <div class="sp-medal-name">${ms?.name}</div>
+      <div class="sp-medal-metal">— ${ms?.metal} —</div>
+      <div class="sp-medal-bracket">${ms?.bracket}</div>
+      <div class="sp-medal-bonus">🎉 +${ms?.bonus} BONUS POINTS UNLOCKED!</div>
+    </div>`;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'streakPopupOverlay';
+  overlay.className = 'sp-overlay';
+
+  overlay.innerHTML = `
+    <div class="sp-card">
+
+      <!-- ✕ close -->
+      <button class="sp-close" onclick="document.getElementById('streakPopupOverlay').remove()">✕</button>
+
+      <!-- Header row -->
+      <div class="sp-header">
+        <div class="sp-check">✓</div>
+        <span class="sp-title">Brahmacharya Streak Maintained!</span>
+      </div>
+
+      <!-- Big streak number -->
+      <div class="sp-streak-row">
+        Completion Streak: <span class="sp-streak-num">${currentStreak}</span> Day${currentStreak > 1 ? 's' : ''}
+      </div>
+      <div class="sp-date">${dateLabel}</div>
+
+      <!-- Motivation quote -->
+      <div class="sp-quote">${quote}</div>
+
+      <!-- Coin or Medal -->
+      ${isMilestone ? medalHTML : coinHTML}
+
+      <!-- Points table -->
+      <div class="sp-pts-table">
+        <div class="sp-pts-row">
+          <span>🪙 Today's Coins</span>
+          <span class="sp-gold">+10 pts</span>
+        </div>
+        ${isMilestone ? `<div class="sp-pts-row">
+          <span>🏆 Milestone Bonus (Day ${currentStreak})</span>
+          <span class="sp-green">+${ms.bonus} pts</span>
+        </div>` : ''}
+        <div class="sp-pts-divider"></div>
+        <div class="sp-pts-row">
+          <span>⚡ Total Points</span>
+          <span class="sp-purple sp-bold">${totalPoints} pts</span>
+        </div>
+        <div class="sp-pts-row">
+          <span>🏅 Best Streak</span>
+          <span class="sp-gold sp-bold">${bestStreak} days</span>
+        </div>
+        <div class="sp-pts-row">
+          <span>📊 Your Rank</span>
+          <span class="sp-gold sp-bold">${currentRank}</span>
+        </div>
+      </div>
+
+      <!-- CTA button -->
+      <button class="sp-btn" onclick="document.getElementById('streakPopupOverlay').remove()">
+        ⚔️ KEEP GOING, WARRIOR
+      </button>
+
+    </div>`;
+
+  document.body.appendChild(overlay);
+  // Close on backdrop click
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
 }
 
 // ============================================================
@@ -973,38 +1119,52 @@ function updateClubClock() {
 
 async function updateClubButtons(totalMins, openMins, closeMins) {
   const joinBtn   = document.getElementById('clubJoinBtn');
-  const closedMsg = document.getElementById('clubClosedMsg');
-  const doneMsg   = document.getElementById('clubDoneMsg');
+  const wakeBtn   = document.getElementById('clubWakeupBtn');
   if (!joinBtn) return;
-
-  if (closedMsg) closedMsg.style.display = 'none';
-  if (doneMsg)   doneMsg.style.display   = 'none';
-  joinBtn.style.display = 'block';
 
   const todayStr    = getTodayStr();
   const alreadyDone = await hasClubCheckinToday(todayStr);
 
+  // ── ATTENDANCE BUTTON ──────────────────────────────────────
   if (alreadyDone) {
-    joinBtn.textContent        = '✅ Attendance Done!';
-    joinBtn.style.background   = 'linear-gradient(135deg, #10b981, #059669)';
-    joinBtn.style.color        = '#fff';
-    joinBtn.style.boxShadow    = '0 0 16px #10b98188';
-    joinBtn.style.cursor       = 'default';
-    joinBtn.disabled           = true;
+    joinBtn.textContent = '✅ Attendance Done!';
+    joinBtn.className   = 'btn-club-join done-state';
+    joinBtn.disabled    = true;
   } else if (totalMins >= openMins && totalMins < closeMins) {
-    joinBtn.textContent        = '✅ ATTENDANCE';
-    joinBtn.style.background   = 'linear-gradient(135deg, #f59e0b, #fcd34d)';
-    joinBtn.style.color        = '#1a0030';
-    joinBtn.style.boxShadow    = '0 0 28px #f59e0bcc';
-    joinBtn.style.cursor       = 'pointer';
-    joinBtn.disabled           = false;
+    joinBtn.textContent = '🌅 ATTENDANCE';
+    joinBtn.className   = 'btn-club-join active-window';
+    joinBtn.disabled    = false;
   } else {
-    joinBtn.textContent        = '🔒 ATTENDANCE — Opens 5:00 AM';
-    joinBtn.style.background   = 'linear-gradient(135deg, #dc2626, #ef4444)';
-    joinBtn.style.color        = '#fff';
-    joinBtn.style.boxShadow    = '0 0 12px #dc262688';
-    joinBtn.style.cursor       = 'not-allowed';
-    joinBtn.disabled           = true;
+    joinBtn.textContent = '🔒 ATTENDANCE — Opens 5 AM';
+    joinBtn.className   = 'btn-club-join';
+    joinBtn.disabled    = true;
+  }
+
+  // ── WAKEUP BUTTON ─────────────────────────────────────────
+  if (!wakeBtn) return;
+  const wakeKey  = 'bm_wakeup_' + todayStr;
+  const wakeData = localStorage.getItem(wakeKey);
+
+  if (wakeData) {
+    // Already marked wakeup manually
+    const { time, under6 } = JSON.parse(wakeData);
+    wakeBtn.textContent = `⏰ Woke up at ${time}`;
+    wakeBtn.disabled    = true;
+    wakeBtn.classList.remove('wakeup-done-green','wakeup-done-red');
+    wakeBtn.classList.add(under6 ? 'wakeup-done-green' : 'wakeup-done-red');
+    wakeBtn.style.animation = 'none';
+  } else if (alreadyDone) {
+    // Attended 5AM → auto-mark wakeup as done too
+    wakeBtn.textContent = '⏰ Woke up — Auto marked ✅';
+    wakeBtn.disabled    = true;
+    wakeBtn.classList.remove('wakeup-done-green','wakeup-done-red');
+    wakeBtn.classList.add('wakeup-done-green');
+    wakeBtn.style.animation = 'none';
+  } else {
+    wakeBtn.textContent = '⏰ WAKE UP';
+    wakeBtn.disabled    = false;
+    wakeBtn.classList.remove('wakeup-done-green','wakeup-done-red');
+    wakeBtn.style.animation = '';
   }
 }
 
@@ -1055,7 +1215,8 @@ async function clubCheckIn() {
     q.push({ user_id: currentUser.id, checkin_date: dateStr, checkin_time: timeStr, points });
     localStorage.setItem('bm_club_queue', JSON.stringify(q));
     showToast(`📵 Offline — attendance saved! Syncs when online (+${points} pts)`, 4000);
-    if (joinBtn) { joinBtn.disabled = true; joinBtn.textContent = '✅ DONE (offline)'; }
+    if (joinBtn) { joinBtn.className = 'btn-club-join done-state'; joinBtn.disabled = true; joinBtn.textContent = '✅ Attendance Done!'; }
+    setTimeout(() => { window.open(CLUB_ZOOM_LINK, '_blank'); }, 800);
     return;
   }
 
@@ -1073,6 +1234,7 @@ async function clubCheckIn() {
   }
 
   showToast(`✅ Attendance at ${timeStr} — +${points} pts!`, 4000);
+  if (joinBtn) { joinBtn.className = 'btn-club-join done-state'; joinBtn.disabled = true; joinBtn.textContent = '✅ Attendance Done!'; }
   loadClubData();
   setTimeout(() => { window.open(CLUB_ZOOM_LINK, '_blank'); }, 800);
 }
@@ -1092,7 +1254,7 @@ async function loadMyClubHistory() {
     .select('checkin_date, checkin_time, points')
     .eq('user_id', currentUser.id)
     .order('checkin_date', { ascending: false })
-    .limit(30);
+    .limit(60);
 
   // Compute streak
   const dates = (data || []).map(r => r.checkin_date).sort((a,b) => b.localeCompare(a));
@@ -1109,10 +1271,36 @@ async function loadMyClubHistory() {
   const streakEl = document.getElementById('clubStreak');
   if (streakEl) streakEl.textContent = streak;
 
+  // 5AM Club total points (sum of all check-in points)
+  const clubTotalPts = (data || []).reduce((sum, r) => sum + (r.points || 0), 0);
+  const clubTotalEl  = document.getElementById('clubTotalPts');
+  if (clubTotalEl) clubTotalEl.textContent = clubTotalPts;
+
+  // 5AM Club best streak (longest consecutive days)
+  const allDates = [...new Set((data || []).map(r => r.checkin_date))].sort();
+  let bestStreak = 0, runStreak = 0;
+  for (let i = 0; i < allDates.length; i++) {
+    if (i === 0) { runStreak = 1; }
+    else {
+      const diff = (new Date(allDates[i]) - new Date(allDates[i-1])) / 86400000;
+      runStreak = diff === 1 ? runStreak + 1 : 1;
+    }
+    if (runStreak > bestStreak) bestStreak = runStreak;
+  }
+  const clubBestEl = document.getElementById('clubBestStreak');
+  if (clubBestEl) clubBestEl.textContent = bestStreak;
+
   // Today's points
   const todayRec = (data || []).find(r => r.checkin_date === today);
   const ptsEl = document.getElementById('clubPtsToday');
   if (ptsEl) ptsEl.textContent = todayRec ? `${todayRec.points} pts` : '—';
+
+  // Build checkin map: date -> time
+  window._clubCheckinMap = {};
+  (data || []).forEach(r => { window._clubCheckinMap[r.checkin_date] = r.checkin_time; });
+
+  // Render wakeup calendar
+  renderClubWakeupCalendar();
 
   // History chips
   const grid = document.getElementById('clubMyHistory');
@@ -1783,3 +1971,140 @@ if ('serviceWorker' in navigator) {
     if (e.data && e.data.type === 'FLUSH_OFFLINE_QUEUE') flushOfflineQueue();
   });
 }
+
+// ============================================================
+// WAKEUP BUTTON + CALENDAR
+// ============================================================
+
+window.markWakeup = function() {
+  const now    = new Date();
+  const h      = now.getHours();
+  const m      = now.getMinutes();
+  const time   = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  const under6 = (h < 6);
+  const dateStr = getTodayStr();
+  const wakeKey = 'bm_wakeup_' + dateStr;
+
+  if (localStorage.getItem(wakeKey)) { showToast('✅ Already marked today!'); return; }
+
+  localStorage.setItem(wakeKey, JSON.stringify({ time, under6 }));
+
+  const wakeBtn = document.getElementById('clubWakeupBtn');
+  if (wakeBtn) {
+    wakeBtn.textContent = `⏰ Woke up at ${time}`;
+    wakeBtn.disabled    = true;
+    wakeBtn.classList.remove('wakeup-done-green','wakeup-done-red');
+    wakeBtn.classList.add(under6 ? 'wakeup-done-green' : 'wakeup-done-red');
+    wakeBtn.style.animation = 'none';
+  }
+
+  showToast(under6
+    ? `✅ Wakeup at ${time} — Before 6AM! 🔥 Green day!`
+    : `⏰ Wakeup at ${time} — After 6AM`, 3500);
+
+  renderClubWakeupCalendar();
+};
+
+// ── Calendar state ─────────────────────────────────────────────
+let clubCalYear  = new Date().getFullYear();
+let clubCalMonth = new Date().getMonth();
+
+window.clubCalPrev = function() {
+  clubCalMonth--;
+  if (clubCalMonth < 0) { clubCalMonth = 11; clubCalYear--; }
+  renderClubWakeupCalendar();
+};
+window.clubCalNext = function() {
+  clubCalMonth++;
+  if (clubCalMonth > 11) { clubCalMonth = 0; clubCalYear++; }
+  renderClubWakeupCalendar();
+};
+
+function renderClubWakeupCalendar() {
+  const cal     = document.getElementById('clubWakeupCal');
+  const titleEl = document.getElementById('clubCalTitle');
+  if (!cal) return;
+
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  if (titleEl) titleEl.textContent = `${MONTHS[clubCalMonth]} ${clubCalYear}`;
+
+  const todayStr   = getTodayStr();
+  const checkinMap = window._clubCheckinMap || {};
+
+  // Read all wakeup entries from localStorage
+  const wakeupMap = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('bm_wakeup_')) {
+      const ds = k.replace('bm_wakeup_', '');
+      try { wakeupMap[ds] = JSON.parse(localStorage.getItem(k)); } catch(e) {}
+    }
+  }
+
+  const firstDay    = new Date(clubCalYear, clubCalMonth, 1).getDay();
+  const daysInMonth = new Date(clubCalYear, clubCalMonth + 1, 0).getDate();
+
+  cal.innerHTML = '';
+
+  // Empty leading cells
+  for (let i = 0; i < firstDay; i++) {
+    const e = document.createElement('div');
+    e.className = 'club-wakeup-day cwd-empty';
+    cal.appendChild(e);
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds   = `${clubCalYear}-${String(clubCalMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const cell = document.createElement('div');
+    cell.className = 'club-wakeup-day';
+    if (ds === todayStr) cell.classList.add('cwd-today');
+
+    let timeLabel = '';
+    let colored   = false;
+
+    // Wakeup button data takes priority
+    if (wakeupMap[ds]) {
+      const { time, under6 } = wakeupMap[ds];
+      timeLabel = time;
+      cell.classList.add(under6 ? 'cwd-green' : 'cwd-red');
+      colored = true;
+    }
+
+    // Fallback: club attendance time
+    if (!colored && checkinMap[ds]) {
+      const t    = checkinMap[ds];
+      const hh   = parseInt(t.split(':')[0]);
+      timeLabel  = t;
+      cell.classList.add(hh < 6 ? 'cwd-green' : 'cwd-red');
+    }
+
+    // Date on top, time below
+    cell.innerHTML = `<span class="cwd-num">${d}</span>${timeLabel ? `<span class="cwd-time">${timeLabel}</span>` : ''}`;
+    cal.appendChild(cell);
+  }
+}
+
+// Init wakeup button state on club screen load
+const _origShowClub = window.showClub;
+window.showClub = function() {
+  if (typeof _origShowClub === 'function') _origShowClub();
+  // Reset cal to current month
+  clubCalYear  = new Date().getFullYear();
+  clubCalMonth = new Date().getMonth();
+  // Set wakeup button state
+  const wakeBtn = document.getElementById('clubWakeupBtn');
+  if (wakeBtn) {
+    const wakeData = localStorage.getItem('bm_wakeup_' + getTodayStr());
+    if (wakeData) {
+      const { time, under6 } = JSON.parse(wakeData);
+      wakeBtn.textContent = `⏰ Woke up at ${time}`;
+      wakeBtn.disabled    = true;
+      wakeBtn.classList.add(under6 ? 'wakeup-done-green' : 'wakeup-done-red');
+      wakeBtn.style.animation = 'none';
+    } else {
+      wakeBtn.textContent = '⏰ WAKE UP';
+      wakeBtn.disabled    = false;
+    }
+  }
+};
