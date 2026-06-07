@@ -257,20 +257,148 @@ body{background:var(--purple-deep);color:var(--white);font-family:var(--font-b);
 
 
 
+/* ===== STREAK POPUP — Leetcode style ===== */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes popupSlide{from{transform:scale(.88) translateY(24px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+@keyframes coinFloat{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-10px) rotate(3deg)}}
+@keyframes coinGlow{0%,100%{filter:drop-shadow(0 0 8px #f59e0b) drop-shadow(0 0 20px #f59e0b88)}50%{filter:drop-shadow(0 0 18px #fcd34d) drop-shadow(0 0 40px #fcd34dcc)}}
+@keyframes medalBounce{0%,100%{transform:scale(1) translateY(0)}50%{transform:scale(1.12) translateY(-8px)}}
+@keyframes medalGlow{0%,100%{filter:drop-shadow(0 0 10px gold)}50%{filter:drop-shadow(0 0 30px gold) drop-shadow(0 0 60px #fcd34d)}}
+
+.sp-overlay{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.8);
+  backdrop-filter:blur(10px);
+  z-index:9999;
+  display:flex;align-items:center;justify-content:center;
+  padding:1rem;
+  animation:fadeIn .25s ease;
+}
+.sp-card{
+  background:#1c1c1e;
+  border:1px solid rgba(168,85,247,.4);
+  border-radius:20px;
+  padding:1.6rem 1.4rem 1.4rem;
+  max-width:390px;width:100%;
+  text-align:center;
+  position:relative;
+  box-shadow:0 0 0 1px rgba(255,255,255,.04), 0 24px 60px rgba(0,0,0,.7), 0 0 40px rgba(123,47,255,.25);
+  animation:popupSlide .4s cubic-bezier(.34,1.56,.64,1);
+}
+.sp-close{
+  position:absolute;top:.9rem;right:1rem;
+  background:none;border:none;
+  color:rgba(255,255,255,.35);font-size:1.2rem;
+  cursor:pointer;transition:color .2s;line-height:1;
+}
+.sp-close:hover{color:#fff}
+
+/* Header */
+.sp-header{display:flex;align-items:center;justify-content:center;gap:.55rem;margin-bottom:1rem}
+.sp-check{
+  width:26px;height:26px;border-radius:50%;
+  background:#10b981;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.95rem;color:#fff;font-weight:700;flex-shrink:0;
+}
+.sp-title{
+  font-family:var(--font-d);font-size:.95rem;font-weight:700;
+  color:#fff;letter-spacing:.5px;text-align:left;
+}
+
+/* Streak number */
+.sp-streak-row{
+  font-family:var(--font-d);font-size:1.6rem;font-weight:900;
+  color:#fff;margin-bottom:.2rem;line-height:1.2;
+}
+.sp-streak-num{color:#c084fc;font-size:2rem}
+.sp-date{font-size:.78rem;color:rgba(255,255,255,.4);margin-bottom:1rem;letter-spacing:.3px}
+
+/* Quote */
+.sp-quote{
+  background:rgba(123,47,255,.12);
+  border:1px solid rgba(168,85,247,.2);
+  border-radius:12px;
+  padding:.7rem .9rem;
+  font-size:.82rem;color:#c084fc;
+  font-style:italic;line-height:1.55;
+  margin-bottom:1.1rem;text-align:left;
+}
+
+/* Coin */
+.sp-coin-wrap{display:flex;flex-direction:column;align-items:center;gap:.4rem;margin-bottom:1.1rem}
+.sp-coin{animation:coinFloat 2.5s ease-in-out infinite,coinGlow 2.5s ease-in-out infinite}
+.sp-pts-today{font-size:.82rem;color:#f59e0b;font-weight:700;letter-spacing:.5px}
+
+/* Medal */
+.sp-medal-wrap{display:flex;flex-direction:column;align-items:center;gap:.3rem;margin-bottom:1.1rem}
+.sp-medal-icon{font-size:4.5rem;animation:medalBounce 1.2s ease-in-out infinite,medalGlow 1.2s ease-in-out infinite;line-height:1}
+.sp-medal-name{font-family:var(--font-d);font-size:1.2rem;font-weight:700;color:#fcd34d;margin-top:.2rem}
+.sp-medal-metal{font-size:.8rem;color:rgba(255,255,255,.5);letter-spacing:2px}
+.sp-medal-bracket{font-size:.75rem;color:#c084fc;font-style:italic}
+.sp-medal-bonus{
+  margin-top:.4rem;padding:.4rem 1rem;
+  background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.35);
+  border-radius:20px;font-size:.82rem;color:#34d399;font-weight:700;
+}
+
+/* Points table */
+.sp-pts-table{
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:14px;
+  padding:.85rem 1rem;
+  display:flex;flex-direction:column;gap:.5rem;
+  text-align:left;margin-bottom:1.1rem;
+}
+.sp-pts-row{display:flex;justify-content:space-between;align-items:center;font-size:.85rem;color:rgba(255,255,255,.55)}
+.sp-pts-divider{height:1px;background:rgba(255,255,255,.07);margin:.1rem 0}
+.sp-gold{color:#f59e0b}
+.sp-green{color:#10b981}
+.sp-purple{color:#c084fc}
+.sp-bold{font-weight:700;font-family:var(--font-d)}
+
+/* CTA */
+.sp-btn{
+  width:100%;padding:.8rem;
+  background:linear-gradient(135deg,#7b2fff,#5b21b6);
+  border:none;border-radius:12px;
+  color:#fff;font-family:var(--font-d);
+  font-size:.88rem;font-weight:700;letter-spacing:2px;
+  cursor:pointer;
+  box-shadow:0 4px 20px rgba(123,47,255,.4);
+  transition:all .2s;
+}
+.sp-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(123,47,255,.6)}
+
 /* ===== 5AM CLUB ===== */
 .btn-club-join{
-  padding:1rem 2rem;
-  background:linear-gradient(135deg,#f59e0b,#d97706);
+  padding:.85rem 1.5rem;
   border:none;border-radius:14px;
-  color:#0a0010;font-family:var(--font-d);
-  font-size:1rem;font-weight:700;
+  font-family:var(--font-d);
+  font-size:.95rem;font-weight:700;
   letter-spacing:2px;cursor:pointer;
   transition:all .3s;
-  box-shadow:0 4px 30px rgba(245,158,11,.5);
+  /* Default locked style */
+  background:linear-gradient(135deg,#4b5563,#374151);
+  color:#9ca3af;
+  box-shadow:0 2px 10px rgba(0,0,0,.3)
+}
+/* Yellow active state — applied by JS */
+.btn-club-join.active-window{
+  background:linear-gradient(135deg,#f59e0b,#fcd34d) !important;
+  color:#0a0010 !important;
+  box-shadow:0 4px 30px rgba(245,158,11,.6) !important;
   animation:goldPulse 2s ease-in-out infinite
 }
-.btn-club-join:hover{transform:translateY(-3px);box-shadow:0 8px 40px rgba(245,158,11,.7)}
-.btn-club-join:disabled{opacity:.4;cursor:not-allowed;transform:none;animation:none}
+.btn-club-join.done-state{
+  background:linear-gradient(135deg,#10b981,#059669) !important;
+  color:#fff !important;
+  box-shadow:0 0 16px #10b98188 !important;
+  animation:none !important
+}
+.btn-club-join:disabled{cursor:not-allowed;transform:none !important}
+.btn-club-join:not(:disabled).active-window:hover{transform:translateY(-3px);box-shadow:0 8px 40px rgba(245,158,11,.8) !important}
 @keyframes goldPulse{0%,100%{box-shadow:0 4px 30px rgba(245,158,11,.5)}50%{box-shadow:0 4px 50px rgba(245,158,11,.85)}}
 
 .club-closed-msg,.club-done-msg{
@@ -315,6 +443,50 @@ body{background:var(--purple-deep);color:var(--white);font-family:var(--font-b);
 /* Club lb row extra info */
 .lb-club-time{font-size:.75rem;color:var(--gold);font-weight:600}
 .lb-club-pts{font-size:.7rem;color:var(--muted)}
+
+/* ===== 5AM CLUB WAKEUP CALENDAR ===== */
+.club-wakeup-calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:.75rem}
+.club-wakeup-day{border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px 2px;font-family:var(--font-b);position:relative;min-height:64px;border:1px solid rgba(168,85,247,.15);background:rgba(123,47,255,.06);transition:all .2s;gap:2px}
+.club-wakeup-day .cwd-num{font-size:1.5rem;font-weight:900;line-height:1;color:#fff;letter-spacing:-1px}
+.club-wakeup-day .cwd-time{font-size:.78rem;font-weight:800;line-height:1.1;color:#fff;letter-spacing:.5px}
+.club-wakeup-day.cwd-empty{background:transparent;border:none}
+.club-wakeup-day.cwd-green{background:#10b981;border:1px solid #059669;box-shadow:0 2px 10px rgba(16,185,129,.4)}
+.club-wakeup-day.cwd-red{background:#ef4444;border:1px solid #dc2626;box-shadow:0 2px 8px rgba(239,68,68,.35)}
+.club-wakeup-day.cwd-today{box-shadow:0 0 14px rgba(123,47,255,.6);border:2px solid var(--purple-bright)!important}
+.club-cal-day-hdr-row{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px}
+.club-cal-day-hdr{text-align:center;font-size:.55rem;color:var(--muted);letter-spacing:.5px;padding:2px 0;text-transform:uppercase}
+.club-cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
+.club-cal-nav-btn{background:rgba(123,47,255,.2);border:1px solid rgba(168,85,247,.3);color:var(--purple-light);padding:.3rem .8rem;border-radius:16px;font-family:var(--font-b);font-size:.78rem;font-weight:600;cursor:pointer;transition:all .3s}
+.club-cal-nav-btn:hover{background:rgba(123,47,255,.4)}
+.club-cal-nav-title{font-family:var(--font-d);font-size:.9rem;font-weight:700;color:var(--gold);letter-spacing:2px}
+.club-cal-legend{display:flex;gap:1rem;margin-top:.75rem;justify-content:center;flex-wrap:wrap}
+.club-cal-legend-item{display:flex;align-items:center;gap:.35rem;font-size:.72rem;color:var(--muted)}
+.club-cal-legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+
+/* Wakeup button */
+.btn-wakeup{
+  padding:.75rem 1.4rem;
+  background:linear-gradient(135deg,#7b2fff,#a855f7);
+  border:none;border-radius:12px;
+  color:#fff;font-family:var(--font-d);
+  font-size:.85rem;font-weight:700;
+  letter-spacing:1.5px;cursor:pointer;
+  transition:all .3s;
+  box-shadow:0 4px 20px rgba(123,47,255,.5);
+  animation:wakeupPulse 2.5s ease-in-out infinite;
+  margin-top:.5rem;width:100%
+}
+.btn-wakeup:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(123,47,255,.7)}
+.btn-wakeup:disabled{opacity:.6;cursor:not-allowed;transform:none;animation:none}
+@keyframes wakeupPulse{0%,100%{box-shadow:0 4px 20px rgba(123,47,255,.5)}50%{box-shadow:0 4px 36px rgba(168,85,247,.85)}}
+.wakeup-done-green{background:linear-gradient(135deg,#065f46,#10b981)!important;animation:none!important}
+.wakeup-done-red{background:linear-gradient(135deg,#7f1d1d,#ef4444)!important;animation:none!important}
+
+@media(max-width:600px){
+  .club-wakeup-day{min-height:56px;padding:4px 1px}
+  .club-wakeup-day .cwd-num{font-size:1.25rem}
+  .club-wakeup-day .cwd-time{font-size:.65rem}
+}
 
 
 
