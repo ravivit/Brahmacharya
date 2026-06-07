@@ -626,6 +626,8 @@
 <!-- ==================== 5AM CLUB SCREEN ==================== -->
 <div class="screen" id="clubScreen" style="display:none">
   <div class="app">
+
+    <!-- HEADER -->
     <header class="header">
       <div class="header-left">
         <div class="avatar">🌅</div>
@@ -635,11 +637,15 @@
         </div>
       </div>
       <div class="header-right">
-        <div class="stat-pill"><span class="stat-label">🔥 Streak</span><span class="stat-val" id="clubStreak">0</span></div>
+        <div class="stat-pill"><span class="stat-label">🔥 5AM Streak</span><span class="stat-val" id="clubStreak">0</span></div>
         <div class="stat-pill"><span class="stat-label">⚡ Pts Today</span><span class="stat-val" id="clubPtsToday">—</span></div>
+        <div class="stat-pill"><span class="stat-label">💰 Total Pts</span><span class="stat-val" id="clubTotalPts">—</span></div>
+        <div class="stat-pill"><span class="stat-label">🏆 Best Streak</span><span class="stat-val" id="clubBestStreak">—</span></div>
         <button class="btn-nav" onclick="showMain()">← Back</button>
       </div>
     </header>
+
+    <!-- ATTENDANCE + WAKEUP — live clock card -->
     <section class="today-section">
       <div class="today-card" id="clubCheckinCard">
         <div class="today-glow"></div>
@@ -649,14 +655,44 @@
           <div class="today-status" id="clubWindowStatus">Loading...</div>
         </div>
         <div class="today-right">
-          <div id="clubBtnArea">
-            <button class="btn-club-join" id="clubJoinBtn" onclick="clubCheckIn()" style="display:none">🌅 JOIN 5AM CLUB</button>
-            <div class="club-closed-msg" id="clubClosedMsg" style="display:none">🔒 Window closed — See you at 4:45 AM tomorrow</div>
-            <div class="club-done-msg" id="clubDoneMsg" style="display:none">✅ Checked in today!</div>
+          <div id="clubBtnArea" style="display:flex;flex-direction:column;gap:.6rem">
+            <button class="btn-club-join" id="clubJoinBtn" onclick="clubCheckIn()">🔒 ATTENDANCE — Opens 5 AM</button>
+            <button class="btn-wakeup" id="clubWakeupBtn" onclick="markWakeup()">⏰ WAKE UP</button>
           </div>
         </div>
       </div>
     </section>
+
+    <!-- ZOOM / MEET — separate section right after buttons -->
+    <section class="card-section" style="text-align:center;padding:1.25rem">
+      <h3 class="section-title">📹 Live Morning Session</h3>
+      <p style="color:var(--muted);font-size:.88rem;margin-bottom:1rem">Opens at 5:00 AM daily — join after attendance ✅</p>
+      <a id="zoomLink" href="https://meet.google.com/qcm-njtw-cyq" target="_blank" class="btn-zoom">📹 Join Zoom / Meet</a>
+    </section>
+
+    <!-- WAKEUP CALENDAR -->
+    <section class="card-section">
+      <h3 class="section-title">🌅 Wakeup Calendar</h3>
+      <div class="club-cal-nav">
+        <button class="club-cal-nav-btn" onclick="clubCalPrev()">‹ Prev</button>
+        <span class="club-cal-nav-title" id="clubCalTitle"></span>
+        <button class="club-cal-nav-btn" onclick="clubCalNext()">Next ›</button>
+      </div>
+      <div class="club-cal-day-hdr-row">
+        <div class="club-cal-day-hdr">Sun</div><div class="club-cal-day-hdr">Mon</div>
+        <div class="club-cal-day-hdr">Tue</div><div class="club-cal-day-hdr">Wed</div>
+        <div class="club-cal-day-hdr">Thu</div><div class="club-cal-day-hdr">Fri</div>
+        <div class="club-cal-day-hdr">Sat</div>
+      </div>
+      <div class="club-wakeup-calendar" id="clubWakeupCal"></div>
+      <div class="club-cal-legend">
+        <div class="club-cal-legend-item"><div class="club-cal-legend-dot" style="background:#10b981"></div> Before 6AM ✅</div>
+        <div class="club-cal-legend-item"><div class="club-cal-legend-dot" style="background:#ef4444"></div> After 6AM ❌</div>
+        <div class="club-cal-legend-item"><div class="club-cal-legend-dot" style="background:rgba(123,47,255,.3)"></div> No check-in</div>
+      </div>
+    </section>
+
+    <!-- POINTS SYSTEM TABLE -->
     <section class="card-section" style="padding:1.25rem">
       <h3 class="section-title">⚡ Points System</h3>
       <div style="background:rgba(123,47,255,0.08);border:1px solid rgba(123,47,255,0.25);border-radius:14px;padding:1.1rem;display:flex;flex-direction:column;gap:.65rem">
@@ -670,15 +706,9 @@
         <div style="font-size:.78rem;color:var(--muted);text-align:center;font-style:italic">The earlier you rise, the more you earn. Discipline is rewarded.</div>
       </div>
     </section>
-    <section class="card-section" style="text-align:center;padding:1.5rem">
-      <h3 class="section-title">📹 Today's Session</h3>
-      <p style="color:var(--muted);font-size:.9rem;margin-bottom:1.25rem">Join the live session — opens at 5:00 AM</p>
-      <a id="zoomLink" href="https://meet.google.com/qcm-njtw-cyq" target="_blank" class="btn-zoom">📹 Join Zoom / Meet</a>
-    </section>
-    <section class="card-section">
-      <h3 class="section-title">📅 My 5AM History</h3>
-      <div id="clubMyHistory" class="club-history-grid"></div>
-    </section>
+
+    <!-- LEADERBOARD -->
+    <div id="clubMyHistory" style="display:none"></div>
     <section class="card-section" style="margin-bottom:2rem">
       <h3 class="section-title">🏆 5AM Leaderboard</h3>
       <div class="club-lb-tabs">
@@ -688,6 +718,7 @@
       </div>
       <div id="clubLeaderboard"></div>
     </section>
+
   </div>
 </div>
 
