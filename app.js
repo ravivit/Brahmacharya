@@ -56,9 +56,11 @@ let logs        = {};     // { 'YYYY-MM-DD': 'done'|'missed' }
 let triggers    = [];
 let streakHistory   = [];
 let currentStreak   = 0;
+let bestStreak      = 0;
 let totalPoints     = 0;
 let musicPlaying    = false;
 let redemptions     = {};  // { 'YYYY-MM-DD': true } — redeemed days
+let isGuestMode     = false; // Guest / Explore mode flag
 
 const today    = new Date(); today.setHours(0,0,0,0);
 const todayStr = fmtDate(today);
@@ -210,7 +212,78 @@ async function forgotPassword() {
   el('loginErr').textContent = '✅ Password reset link sent — please check your email.';
 }
 
+// ============================================================
+// GUEST / EXPLORE MODE
+// ============================================================
+function enterGuestMode() {
+  isGuestMode = true;
+  const d12ago = fmtDate(new Date(today.getTime() - 12 * 86400000));
+  profile = {
+    user_id: 'guest',
+    name: 'Warrior (Guest)',
+    goal: 'Exploring BrahmaMode — Login to save real data!',
+    startDate: d12ago,
+    email: 'guest@brahmamode.space'
+  };
+  logs = {};
+  for (let i = 12; i >= 1; i--) {
+    const d = new Date(today.getTime() - i * 86400000);
+    const ds = fmtDate(d);
+    if (i === 5 || i === 9) logs[ds] = 'missed';
+    else logs[ds] = 'done';
+  }
+  redemptions = {};
+  window._guestMode = true;
+  showScreen('mainScreen');
+  renderAll();
+  initClubClock();
+  // Hide notif bell for guest
+  setTimeout(() => {
+    const bell = document.getElementById('bmBell');
+    if (bell) bell.style.display = 'none';
+  }, 600);
+  setTimeout(() => {
+    showToast('👁️ Explore Mode — Login to save your real progress!', 5000);
+  }, 900);
+  // Show guest banner strip
+  const banner = document.createElement('div');
+  banner.id = 'guestBanner';
+  banner.style.cssText = 'position:fixed;bottom:72px;left:0;right:0;z-index:998;background:linear-gradient(90deg,rgba(123,47,255,.9),rgba(168,85,247,.9));padding:8px 16px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(10px);';
+  banner.innerHTML = '<span style="font-family:var(--font-b);font-size:.78rem;color:#fff;font-weight:600;">👁️ Explore Mode — Data is not saved</span><button onclick="document.getElementById(\'guestBanner\').remove();showScreen(\'authScreen\');isGuestMode=false;" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);border-radius:20px;color:#fff;padding:4px 12px;font-family:var(--font-b);font-size:.75rem;font-weight:700;cursor:pointer;">Login Free</button>';
+  document.body.appendChild(banner);
+}
+
+function guestBlock(featureName) {
+  if (!isGuestMode) return false;
+  const old = document.getElementById('guestBlockOverlay');
+  if (old) old.remove();
+  const ov = document.createElement('div');
+  ov.id = 'guestBlockOverlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;padding:1rem;';
+  ov.innerHTML = `<div style="background:linear-gradient(145deg,#0f0020,#1a0035);border:1px solid rgba(168,85,247,.45);border-radius:24px;padding:2rem 1.5rem;max-width:340px;width:100%;text-align:center;animation:v2FadeUp .3s ease">
+      <div style="font-size:2.5rem;margin-bottom:.75rem;">🔐</div>
+      <div style="font-family:var(--font-d);font-size:1rem;font-weight:700;color:#fff;margin-bottom:.5rem;letter-spacing:1px;">Login Required</div>
+      <p style="font-size:.83rem;color:rgba(255,255,255,.6);margin-bottom:1.5rem;line-height:1.6;"><strong style="color:#c084fc">${featureName || 'This feature'}</strong> saves your data to Supabase.<br>Create a free account — takes 30 seconds!</p>
+      <button onclick="document.getElementById('guestBlockOverlay').remove();showScreen('authScreen');isGuestMode=false;const b=document.getElementById('guestBanner');if(b)b.remove();"
+        style="width:100%;padding:.9rem;background:linear-gradient(135deg,#7b2fff,#5b21b6);border:none;border-radius:12px;color:#fff;font-family:var(--font-d);font-size:.9rem;font-weight:700;letter-spacing:1.5px;cursor:pointer;margin-bottom:.75rem;box-shadow:0 4px 20px rgba(123,47,255,.5);">
+        🔥 LOGIN / REGISTER — FREE
+      </button>
+      <button onclick="document.getElementById('guestBlockOverlay').remove()"
+        style="width:100%;padding:.75rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:12px;color:rgba(255,255,255,.65);font-family:var(--font-b);font-size:.88rem;cursor:pointer;">
+        Continue Exploring
+      </button></div>`;
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+  return true;
+}
+
+
 async function onLogin(user) {
+  isGuestMode = false;
+  window._guestMode = false;
+  // Remove guest UI if present
+  const gb = document.getElementById('guestBanner');
+  if (gb) gb.remove();
   currentUser = user;
   // Load profile
   const { data: prof } = await sb.from('bct_profiles').select('*').eq('user_id', user.id).maybeSingle();
@@ -238,6 +311,11 @@ async function onLogin(user) {
   cacheAppData(); // save for offline use
   showScreen('mainScreen');
   renderAll();
+  if(navigator.onLine) {
+    loadHomeFeed();
+    loadClubData();
+  }
+  initClubClock();
 }
 
 // ============================================================
@@ -293,6 +371,7 @@ function computeStats() {
     }
     streakHistory.push({ start:sStart, end:doneDays[doneDays.length-1], length:sLen });
   }
+  bestStreak = streakHistory.length ? Math.max(...streakHistory.map(s=>s.length)) : currentStreak;
 
   // Points — with level multiplier bonuses
   totalPoints = 0;
@@ -333,7 +412,7 @@ function renderHeader() {
   el('headerStreak').textContent = currentStreak;
   el('headerPoints').textContent = totalPoints;
 if(el('headerDay')) el('headerDay').textContent = profile.startDate ? Math.max(1, daysFrom(profile.startDate)) : 1;
-if(el('headerBest')) el('headerBest').textContent = streakHistory.length ? Math.max(...streakHistory.map(s=>s.length)) : 0;
+if(el('headerBest')) el('headerBest').textContent = bestStreak;
 }
 
 // ============================================================
@@ -440,8 +519,8 @@ function calNextMonth() {
 }
 window.calNextMonth = calNextMonth;
 
-function renderCalendar() {
-  const grid = el('calendarGrid');
+function renderCalendar(gridId) {
+  const grid = document.getElementById(gridId||'calendarGrid');
   if (!grid) return;
   grid.innerHTML = '';
 
@@ -547,13 +626,75 @@ function renderAll() {
   renderToday();
   renderChallenges();
   renderCalendar();
+  renderCalendar('calendarGrid2');
   renderMotivation();
+  renderAnalytics();
+  if(navigator.onLine) renderLbPreview();
+  if(typeof syncJourneyTab==='function') syncJourneyTab();
+  if(typeof syncProfileTab==='function') syncProfileTab();
+}
+
+function renderAnalytics() {
+  const cleanDays = Object.values(logs).filter(v => v === 'done' || v === 'redeemed').length;
+  const totalDays = Object.keys(logs).length;
+  const rate = totalDays > 0 ? Math.round((cleanDays / totalDays) * 100) : 0;
+  const goal = Math.max(bestStreak, currentStreak, 90);
+
+  if (el('anaStreak')) el('anaStreak').textContent = currentStreak;
+  if (el('anaBest')) el('anaBest').textContent = bestStreak;
+  if (el('anaRate')) el('anaRate').textContent = rate + '%';
+  if (el('anaClean')) el('anaClean').textContent = cleanDays;
+  if (el('anaStreakBar')) el('anaStreakBar').style.width = Math.min(100, (currentStreak / goal) * 100) + '%';
+  if (el('anaBestBar')) el('anaBestBar').style.width = Math.min(100, (bestStreak / goal) * 100) + '%';
+  if (el('anaRateBar')) el('anaRateBar').style.width = rate + '%';
+  if (el('anaCleanBar')) el('anaCleanBar').style.width = Math.min(100, (cleanDays / Math.max(totalDays, 1)) * 100) + '%';
+}
+
+async function renderLbPreview() {
+  const preview = el('v2LbPreview');
+  if (!preview || !sb || !navigator.onLine) return;
+  try {
+    const [{ data: profiles }, { data: allLogs }] = await Promise.all([
+      sb.from('bct_profiles').select('user_id, name, startDate'),
+      sb.from('bct_logs').select('user_id, date, status')
+    ]);
+    if (!profiles) return;
+    const logsByUser = {};
+    (allLogs || []).forEach(r => {
+      if (!logsByUser[r.user_id]) logsByUser[r.user_id] = {};
+      logsByUser[r.user_id][r.date] = r.status;
+    });
+    const warriors = profiles.map(p => {
+      const s = computeUserStats(p, logsByUser[p.user_id] || {});
+      return { name: p.name, pts: s.totalPoints, streak: s.currentStreak, uid: p.user_id };
+    }).sort((a, b) => b.pts - a.pts || b.streak - a.streak).slice(0, 5);
+
+    if (!warriors.length) {
+      preview.innerHTML = '<div class="v2-lb-loading">No warriors yet</div>';
+      return;
+    }
+    preview.innerHTML = warriors.map((w, i) => {
+      const isMe = currentUser && w.uid === currentUser.id;
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+      const topClass = i === 0 ? 'top1' : i === 1 ? 'top2' : i === 2 ? 'top3' : '';
+      return `<div class="v2-lb-item ${topClass}">
+        <span class="v2-lb-medal">${medal}</span>
+        <span class="v2-lb-avatar">${(w.name || 'W')[0].toUpperCase()}</span>
+        <div class="v2-lb-info">
+          <div class="v2-lb-name">${w.name}${isMe ? ' (You)' : ''}</div>
+          <div class="v2-lb-sub">🔥 ${w.streak} day streak</div>
+        </div>
+        <span class="v2-lb-pts">${w.pts} pts</span>
+      </div>`;
+    }).join('');
+  } catch (e) { console.error('renderLbPreview:', e); }
 }
 
 // ============================================================
 // CHECK IN
 // ============================================================
 async function checkIn(status) {
+  if (guestBlock('Daily Check-In')) return;
   if (logs[todayStr]) return;
   await saveLog(todayStr, status);
   if (status === 'done') {
@@ -721,6 +862,7 @@ async function showCheckinPopup() {
 // STREAK REDEMPTION — 500 pts = 1 missed day recover
 // ============================================================
 async function redeemStreak() {
+  if (guestBlock('Streak Redemption')) return;
   // Find the most recent missed day (yesterday or before)
   const missedDays = Object.entries(logs)
     .filter(([,v]) => v === 'missed')
@@ -790,14 +932,130 @@ function initParticles() {
 // ============================================================
 // MUSIC
 // ============================================================
-function toggleMusic() {
-  const a = el('bgMusic'), btn = el('musicToggle');
-  if (musicPlaying) {
-    a.pause(); btn.textContent='🎵'; btn.classList.remove('playing'); musicPlaying=false;
-  } else {
-    a.volume=0.25; a.play().catch(()=>{});
-    btn.textContent='🔇'; btn.classList.add('playing'); musicPlaying=true;
+// ── Meditation Tracks (MP3 — same as live site) ───────────────
+const MEDITATION_TRACKS = [
+  { name:'Om Namah Shivaya',       label:'Shiva Mantra • Meditation',      icon:'🔱', file:'music.mp3' },
+  { name:'Om Chanting 108',        label:'Sacred Om • Deep Focus',         icon:'🕉️', file:'music.mp3' },
+  { name:'Gayatri Mantra',         label:'Vedic Chant • Morning Sadhana',  icon:'☀️', file:'music.mp3' },
+  { name:'Mahamrityunjaya',        label:'Healing Mantra • Protection',    icon:'🙏', file:'music.mp3' },
+  { name:'Brahmacharya Meditation',label:'Silence & Focus • Ojas',         icon:'🧘', file:'music.mp3' },
+  { name:'Hanuman Chalisa',        label:'Devotional • Strength',          icon:'🏔️', file:'music.mp3' },
+  { name:'Morning Raga',           label:'Classical • Sunrise 5–7 AM',     icon:'🌅', file:'music.mp3' },
+];
+let currentTrackIdx = 0;
+let musicBarInterval = null;
+
+function initMusicPlayer() {
+  const audio = el('bgMusic');
+  const playBtn = el('musicPlayBtn');
+  const prevBtn = el('musicPrevBtn');
+  const nextBtn = el('musicNextBtn');
+  if (!audio || !playBtn) return;
+
+  function updatePlayBtn() {
+    const playing = !audio.paused;
+    playBtn.textContent = playing ? '⏸' : '▶';
+    playBtn.classList.toggle('playing', playing);
+    musicPlaying = playing;
+    const toggle = el('musicToggle');
+    if (toggle) {
+      toggle.textContent = playing ? '🔇' : '🎵';
+      toggle.classList.toggle('playing', playing);
+    }
   }
+
+  function playTrack(i, autoplay = true) {
+    currentTrackIdx = i;
+    const t = MEDITATION_TRACKS[i];
+    if (el('musicTrackName')) el('musicTrackName').textContent = t.name;
+    if (el('musicTrackType')) el('musicTrackType').textContent = t.label;
+    if (el('musicArt')) el('musicArt').textContent = t.icon;
+    audio.src = t.file;
+    audio.volume = 0.25;
+    if (autoplay) audio.play().catch(() => showToast('⚠️ Tap play to start music'));
+    updatePlayBtn();
+    renderMusicTrackList();
+    startMusicBar();
+  }
+
+  playBtn.addEventListener('click', () => {
+    if (audio.paused) {
+      if (!audio.src) playTrack(currentTrackIdx);
+      else audio.play().catch(() => showToast('⚠️ Music unavailable'));
+    } else {
+      audio.pause();
+    }
+    updatePlayBtn();
+    renderMusicTrackList();
+  });
+
+  if (prevBtn) prevBtn.addEventListener('click', () => playTrack((currentTrackIdx - 1 + MEDITATION_TRACKS.length) % MEDITATION_TRACKS.length));
+  if (nextBtn) nextBtn.addEventListener('click', () => playTrack((currentTrackIdx + 1) % MEDITATION_TRACKS.length));
+
+  audio.addEventListener('ended', () => playTrack((currentTrackIdx + 1) % MEDITATION_TRACKS.length));
+  audio.addEventListener('play', updatePlayBtn);
+  audio.addEventListener('pause', updatePlayBtn);
+
+  updateTrackDisplay();
+  renderMusicTrackList();
+}
+
+function startMusicBar() {
+  const bar = el('v2MusicBar');
+  const audio = el('bgMusic');
+  if (!bar || !audio) return;
+  if (musicBarInterval) clearInterval(musicBarInterval);
+  musicBarInterval = setInterval(() => {
+    if (audio.duration) bar.style.width = (audio.currentTime / audio.duration * 100) + '%';
+  }, 500);
+}
+
+function updateTrackDisplay() {
+  const t = MEDITATION_TRACKS[currentTrackIdx];
+  if (el('musicTrackName')) el('musicTrackName').textContent = t.name;
+  if (el('musicTrackType')) el('musicTrackType').textContent = t.label;
+  if (el('musicArt')) el('musicArt').textContent = t.icon;
+}
+
+function renderMusicTrackList() {
+  const list = el('musicTrackList');
+  const audio = el('bgMusic');
+  if (!list) return;
+  list.innerHTML = '';
+  MEDITATION_TRACKS.forEach((t, i) => {
+    const row = document.createElement('div');
+    const playing = audio && !audio.paused && i === currentTrackIdx;
+    row.className = 'music-track' + (i === currentTrackIdx ? ' active' : '');
+    row.innerHTML = `<span class="music-track-num">${playing ? '▶' : i + 1}</span><span class="music-track-name">${t.icon} ${t.name}</span><span class="music-track-dur">${t.label.split('•')[0].trim()}</span>`;
+    row.onclick = () => {
+      currentTrackIdx = i;
+      const a = el('bgMusic');
+      if (a) { a.src = t.file; a.volume = 0.25; a.play().catch(() => {}); startMusicBar(); }
+      updateTrackDisplay();
+      renderMusicTrackList();
+    };
+    list.appendChild(row);
+  });
+}
+
+function toggleMusic() {
+  const audio = el('bgMusic');
+  const btn = el('musicToggle');
+  if (!audio) { showToast('⏳ Music player loading…'); return; }
+  if (musicPlaying) {
+    audio.pause();
+    if (btn) { btn.textContent = '🎵'; btn.classList.remove('playing'); }
+    musicPlaying = false;
+  } else {
+    if (!audio.src) audio.src = MEDITATION_TRACKS[currentTrackIdx].file;
+    audio.volume = 0.25;
+    audio.play().catch(() => {});
+    if (btn) { btn.textContent = '🔇'; btn.classList.add('playing'); }
+    musicPlaying = true;
+    startMusicBar();
+  }
+  const pb = el('musicPlayBtn');
+  if (pb) pb.textContent = musicPlaying ? '⏸' : '▶';
 }
 
 // ============================================================
@@ -976,6 +1234,7 @@ async function init() {
     if (loadCachedAppData()) {
       showScreen('mainScreen');
       renderAll();
+      initClubClock();
       showToast('📵 Offline mode — data from last session', 4000);
     } else {
       el('loginErr').textContent = '❌ No internet & no cached session. Please connect once to login.';
@@ -1020,6 +1279,7 @@ async function init() {
   // Triggers (optional — if elements exist)
   if(el('addTriggerBtn')) {
     el('addTriggerBtn').addEventListener('click', async()=>{
+      if (guestBlock('Trigger Tracking')) return;
       const val = el('triggerInput').value.trim();
       if(!val) return;
       if(triggers.includes(val)){showToast('Already added!');return;}
@@ -1032,7 +1292,9 @@ async function init() {
   }
 
   // Music
-  el('musicToggle').addEventListener('click', toggleMusic);
+  if(el('musicToggle')) el('musicToggle').addEventListener('click', toggleMusic);
+  // Init new YouTube music player if controls exist
+  if(el('musicPlayBtn')) initMusicPlayer();
 
   // Motivation refresh
   setInterval(renderMotivation, 30000);
@@ -1077,14 +1339,15 @@ function initClubClock() {
   clubClockInterval = setInterval(updateClubClock, 1000);
 }
 
+function setClubText(ids, text) {
+  ids.forEach(id => { const e = document.getElementById(id); if (e) e.textContent = text; });
+}
+
 function updateClubClock() {
   const now = new Date();
   const totalSecs = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
   const openSecs  = 5 * 3600;  // 5:00 AM
   const closeSecs = 6 * 3600;  // 6:00 AM
-
-  const timeEl   = document.getElementById('clubTime');
-  const statusEl = document.getElementById('clubWindowStatus');
 
   function fmt(secs) {
     const h = Math.floor(secs / 3600);
@@ -1095,36 +1358,97 @@ function updateClubClock() {
       : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
   }
 
+  let timeText, statusText;
   if (totalSecs < openSecs) {
-    const diff = openSecs - totalSecs;
-    if (timeEl) timeEl.textContent = `⏳ Opens in ${fmt(diff)}`;
-    if (statusEl) statusEl.textContent = 'Window opens at 5:00 AM';
+    timeText = `Opens in ${fmt(openSecs - totalSecs)}`;
+    statusText = 'Window closed – opens again at 5:00 AM';
   } else if (totalSecs < closeSecs) {
     const remaining = closeSecs - totalSecs;
     const lateSecs  = totalSecs - openSecs;
     const pts = Math.max(0, 60 - Math.floor(lateSecs / 60));
-    if (timeEl) timeEl.textContent = `🟢 Closes in ${fmt(remaining)}`;
-    if (statusEl) statusEl.textContent = lateSecs < 60
-      ? `✅ Window Open! Check in for full 60 pts!`
+    timeText = `Closes in ${fmt(remaining)}`;
+    statusText = lateSecs < 60
+      ? '✅ Window Open! Check in for full 60 pts!'
       : `⏱ ${Math.floor(lateSecs / 60)} min late — ${pts} pts available`;
   } else {
-    const nextOpen = (24 * 3600) - totalSecs + openSecs;
-    if (timeEl) timeEl.textContent = `🔒 Opens in ${fmt(nextOpen)}`;
-    if (statusEl) statusEl.textContent = 'Window closed — opens again at 5:00 AM';
+    timeText = `Opens in ${fmt((24 * 3600) - totalSecs + openSecs)}`;
+    statusText = 'Window closed – opens again at 5:00 AM';
   }
+
+  setClubText(['clubTime', 'clubTimeNew'], timeText);
+  setClubText(['clubWindowStatus', 'clubWindowStatusNew'], statusText);
 
   const totalMins = Math.floor(totalSecs / 60);
   updateClubButtons(totalMins, openSecs / 60, closeSecs / 60);
 }
 
+function applyJoinBtnState(btn, alreadyDone, totalMins, openMins, closeMins, isNew) {
+  if (!btn) return;
+  const baseClass = isNew ? 'club-attendance-btn' : 'btn-club-join';
+  if (alreadyDone) {
+    btn.textContent = '✅ Attendance Done!';
+    btn.className = `${baseClass} done-state`;
+    btn.disabled = true;
+  } else if (totalMins >= openMins && totalMins < closeMins) {
+    btn.textContent = '🌅 ATTENDANCE';
+    btn.className = `${baseClass} active-window`;
+    btn.disabled = false;
+  } else if (totalMins < openMins) {
+    btn.textContent = '🔒 ATTENDANCE — Opens 5 AM';
+    btn.className = isNew ? `${baseClass} locked-state` : baseClass;
+    btn.disabled = true;
+  } else {
+    btn.textContent = '🔒 Window Closed — See you tomorrow';
+    btn.className = isNew ? `${baseClass} locked-state` : baseClass;
+    btn.disabled = true;
+  }
+}
+
+function applyWakeBtnState(btn, wakeData, alreadyDone) {
+  if (!btn) return;
+  const noteEl = document.getElementById('clubWakeupNoteNew');
+  if (wakeData) {
+    const { time, under6 } = JSON.parse(wakeData);
+    btn.textContent = `⏰ Woke up at ${time}`;
+    btn.disabled = true;
+    btn.classList.remove('wakeup-done-green', 'wakeup-done-red');
+    btn.classList.add(under6 ? 'wakeup-done-green' : 'wakeup-done-red');
+    btn.style.animation = 'none';
+    if (noteEl) { noteEl.style.display = 'flex'; noteEl.textContent = under6 ? '⏰ Woke up – Before 6AM ✅' : '⏰ Woke up – After 6AM ❌'; }
+  } else if (alreadyDone) {
+    btn.textContent = '⏰ Woke up — Auto marked ✅';
+    btn.disabled = true;
+    btn.classList.remove('wakeup-done-green', 'wakeup-done-red');
+    btn.classList.add('wakeup-done-green');
+    btn.style.animation = 'none';
+    if (noteEl) { noteEl.style.display = 'flex'; noteEl.textContent = '⏰ Woke up – Auto marked ✅'; }
+  } else {
+    btn.textContent = '⏰ WAKE UP';
+    btn.disabled = false;
+    btn.classList.remove('wakeup-done-green', 'wakeup-done-red');
+    btn.style.animation = '';
+    if (noteEl) noteEl.style.display = 'none';
+  }
+}
+
 async function updateClubButtons(totalMins, openMins, closeMins) {
   const joinBtn   = document.getElementById('clubJoinBtn');
+<<<<<<< HEAD
   const wakeBtn   = document.getElementById('clubWakeupBtn');
   if (!joinBtn) return;
+=======
+  const joinBtnNew = document.getElementById('clubJoinBtnNew');
+  const wakeBtn   = document.getElementById('clubWakeupBtn');
+  const wakeBtnNew = document.getElementById('clubWakeupBtnNew');
+  if (!joinBtn && !joinBtnNew) return;
+>>>>>>> eed6ee4 (BrahmaMode latest updates)
 
   const todayStr    = getTodayStr();
   const alreadyDone = await hasClubCheckinToday(todayStr);
+  const wakeKey  = 'bm_wakeup_' + todayStr;
+  const wakeData = localStorage.getItem(wakeKey);
 
+<<<<<<< HEAD
   // ── ATTENDANCE BUTTON ──────────────────────────────────────
   if (alreadyDone) {
     joinBtn.textContent = '✅ Attendance Done!';
@@ -1166,6 +1490,12 @@ async function updateClubButtons(totalMins, openMins, closeMins) {
     wakeBtn.classList.remove('wakeup-done-green','wakeup-done-red');
     wakeBtn.style.animation = '';
   }
+=======
+  applyJoinBtnState(joinBtn, alreadyDone, totalMins, openMins, closeMins, false);
+  applyJoinBtnState(joinBtnNew, alreadyDone, totalMins, openMins, closeMins, true);
+  applyWakeBtnState(wakeBtn, wakeData, alreadyDone);
+  applyWakeBtnState(wakeBtnNew, wakeData, alreadyDone);
+>>>>>>> eed6ee4 (BrahmaMode latest updates)
 }
 
 async function hasClubCheckinToday(dateStr) {
@@ -1180,6 +1510,7 @@ async function hasClubCheckinToday(dateStr) {
 }
 
 async function clubCheckIn() {
+  if (guestBlock('5AM Club Attendance')) return;
   if (!currentUser) return;
   const now = new Date();
   const h = now.getHours(), m = now.getMinutes();
@@ -1205,8 +1536,10 @@ async function clubCheckIn() {
     if (already) { showToast('✅ Already checked in today!'); return; }
   }
 
-  const joinBtn = document.getElementById('clubJoinBtn');
-  if (joinBtn) { joinBtn.disabled = true; joinBtn.textContent = '⏳ Saving...'; }
+  ['clubJoinBtn', 'clubJoinBtnNew'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Saving...'; }
+  });
 
   localStorage.setItem(offlineKey, JSON.stringify({ time: timeStr, points }));
 
@@ -1215,7 +1548,12 @@ async function clubCheckIn() {
     q.push({ user_id: currentUser.id, checkin_date: dateStr, checkin_time: timeStr, points });
     localStorage.setItem('bm_club_queue', JSON.stringify(q));
     showToast(`📵 Offline — attendance saved! Syncs when online (+${points} pts)`, 4000);
+<<<<<<< HEAD
     if (joinBtn) { joinBtn.className = 'btn-club-join done-state'; joinBtn.disabled = true; joinBtn.textContent = '✅ Attendance Done!'; }
+=======
+    applyJoinBtnState(document.getElementById('clubJoinBtn'), true, 0, 0, 0, false);
+    applyJoinBtnState(document.getElementById('clubJoinBtnNew'), true, 0, 0, 0, true);
+>>>>>>> eed6ee4 (BrahmaMode latest updates)
     setTimeout(() => { window.open(CLUB_ZOOM_LINK, '_blank'); }, 800);
     return;
   }
@@ -1229,12 +1567,19 @@ async function clubCheckIn() {
 
   if (error) {
     showToast('❌ Error saving — try again');
-    if (joinBtn) { joinBtn.disabled = false; joinBtn.textContent = '✅ ATTENDANCE'; }
+    updateClubClock();
     return;
   }
 
   showToast(`✅ Attendance at ${timeStr} — +${points} pts!`, 4000);
+<<<<<<< HEAD
   if (joinBtn) { joinBtn.className = 'btn-club-join done-state'; joinBtn.disabled = true; joinBtn.textContent = '✅ Attendance Done!'; }
+=======
+  applyJoinBtnState(document.getElementById('clubJoinBtn'), true, totalMins, openMins, closeMins, false);
+  applyJoinBtnState(document.getElementById('clubJoinBtnNew'), true, totalMins, openMins, closeMins, true);
+  applyWakeBtnState(document.getElementById('clubWakeupBtn'), null, true);
+  applyWakeBtnState(document.getElementById('clubWakeupBtnNew'), null, true);
+>>>>>>> eed6ee4 (BrahmaMode latest updates)
   loadClubData();
   setTimeout(() => { window.open(CLUB_ZOOM_LINK, '_blank'); }, 800);
 }
@@ -1268,8 +1613,32 @@ async function loadMyClubHistory() {
     } else { break; }
   }
 
-  const streakEl = document.getElementById('clubStreak');
-  if (streakEl) streakEl.textContent = streak;
+  window._clubStreak = streak;
+  // Update BOTH legacy hidden elements AND new visible elements
+  const _upd = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
+  _upd('clubStreak', streak);
+  _upd('clubStreakNew', streak);
+
+  // 5AM Club total points
+  const clubTotalPts = (data || []).reduce((sum, r) => sum + (r.points || 0), 0);
+  window._clubTotalPts = clubTotalPts;
+  _upd('clubTotalPts', clubTotalPts);
+  _upd('clubTotalPtsNew', clubTotalPts);
+
+  // 5AM Club best streak
+  const allDates = [...new Set((data || []).map(r => r.checkin_date))].sort();
+  let clubBest = 0, runStreak = 0;
+  for (let i = 0; i < allDates.length; i++) {
+    if (i === 0) { runStreak = 1; }
+    else {
+      const diff = (new Date(allDates[i]) - new Date(allDates[i-1])) / 86400000;
+      runStreak = diff === 1 ? runStreak + 1 : 1;
+    }
+    if (runStreak > clubBest) clubBest = runStreak;
+  }
+  window._clubBestStreak = clubBest;
+  _upd('clubBestStreak', clubBest);
+  _upd('clubBestStreakNew', clubBest);
 
   // 5AM Club total points (sum of all check-in points)
   const clubTotalPts = (data || []).reduce((sum, r) => sum + (r.points || 0), 0);
@@ -1292,8 +1661,17 @@ async function loadMyClubHistory() {
 
   // Today's points
   const todayRec = (data || []).find(r => r.checkin_date === today);
-  const ptsEl = document.getElementById('clubPtsToday');
-  if (ptsEl) ptsEl.textContent = todayRec ? `${todayRec.points} pts` : '—';
+  window._clubPtsToday = todayRec ? todayRec.points : null;
+  const todayPtsText = todayRec ? `${todayRec.points} pts` : '—';
+  _upd('clubPtsToday', todayPtsText);
+  _upd('clubPtsTodayNew', todayPtsText);
+
+  // Build checkin map: date -> time
+  window._clubCheckinMap = {};
+  (data || []).forEach(r => { window._clubCheckinMap[r.checkin_date] = r.checkin_time; });
+
+  // Render wakeup calendar
+  renderClubWakeupCalendar();
 
   // Build checkin map: date -> time
   window._clubCheckinMap = {};
@@ -1366,18 +1744,23 @@ async function loadClubLeaderboard() {
 
 function switchClubTab(tab) {
   clubActiveTab = tab;
-  document.getElementById('tabLbStreak').classList.toggle('active', tab === 'streak');
-  document.getElementById('tabLbPts').classList.toggle('active', tab === 'pts');
-  document.getElementById('tabLbTime').classList.toggle('active', tab === 'time');
-
-  // Re-render with existing data — reload
+  [
+    ['tabLbStreak', 'tabLbStreakNew', 'streak'],
+    ['tabLbPts', 'tabLbPtsNew', 'pts'],
+    ['tabLbTime', 'tabLbTimeNew', 'time']
+  ].forEach(([legacyId, newId, key]) => {
+    [legacyId, newId].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.classList.toggle('active', key === tab);
+    });
+  });
   loadClubLeaderboard();
 }
 
 function renderClubLeaderboard(rows) {
-  const container = document.getElementById('clubLeaderboard');
-  if (!container) return;
-  container.innerHTML = '';
+  const containers = ['clubLeaderboard', 'clubLeaderboardNew'].map(id => document.getElementById(id)).filter(Boolean);
+  if (!containers.length) return;
+  containers.forEach(c => { c.innerHTML = ''; });
 
   let sorted;
   if (clubActiveTab === 'streak') {
@@ -1390,7 +1773,7 @@ function renderClubLeaderboard(rows) {
       .filter(r => r.todayTime)
       .sort((a,b) => a.todayTime.localeCompare(b.todayTime));
     if (sorted.length === 0) {
-      container.innerHTML = '<p style="color:var(--muted);padding:1rem;font-style:italic">No one has checked in today yet 👀</p>';
+      containers.forEach(c => { c.innerHTML = '<p style="color:var(--muted);padding:1rem;font-style:italic">No one has checked in today yet 👀</p>'; });
       return;
     }
   }
@@ -1412,9 +1795,8 @@ function renderClubLeaderboard(rows) {
       rightSub = `+${r.todayPts} pts today`;
     }
 
-    const row = document.createElement('div');
-    row.className = `lb-row ${rankClass}`;
-    row.innerHTML = `
+    const rowHtml = `
+      <div class="lb-row ${rankClass}">
       <div class="lb-rank">${rankEmoji}</div>
       <div class="lb-avatar">${initial}</div>
       <div class="lb-info">
@@ -1424,8 +1806,8 @@ function renderClubLeaderboard(rows) {
       <div style="text-align:right">
         <div class="lb-club-time">${rightTop}</div>
         <div class="lb-club-pts">${rightSub}</div>
-      </div>`;
-    container.appendChild(row);
+      </div></div>`;
+    containers.forEach(c => { c.insertAdjacentHTML('beforeend', rowHtml); });
   });
 }
 
@@ -1917,9 +2299,11 @@ document.addEventListener('keydown', e => {
 // ============================================================
 // GLOBAL WINDOW EXPORTS (must be at end — all functions defined above)
 // ============================================================
-window.showClub        = function(){ showScreen('clubScreen'); if(document.getElementById('zoomLink')) document.getElementById('zoomLink').href=CLUB_ZOOM_LINK; initClubClock(); loadClubData(); };
+window.showClub        = function(){ bnav('club'); if(document.getElementById('zoomLink')) document.getElementById('zoomLink').href=CLUB_ZOOM_LINK; if(document.getElementById('zoomLinkNew')) document.getElementById('zoomLinkNew').href=CLUB_ZOOM_LINK; initClubClock(); loadClubData(); };
 window.showChat        = showChat;
-window.switchClubTab   = function(t){ clubActiveTab=t; loadClubLeaderboard(); };
+window.switchClubTab   = switchClubTab;
+window.loadClubData    = loadClubData;
+window.initClubClock   = initClubClock;
 window.clubCheckIn     = clubCheckIn;
 window.sendGroupMessage= sendGroupMessage;
 window.sendDM          = sendDM;
@@ -1989,6 +2373,7 @@ window.markWakeup = function() {
 
   localStorage.setItem(wakeKey, JSON.stringify({ time, under6 }));
 
+<<<<<<< HEAD
   const wakeBtn = document.getElementById('clubWakeupBtn');
   if (wakeBtn) {
     wakeBtn.textContent = `⏰ Woke up at ${time}`;
@@ -1996,6 +2381,21 @@ window.markWakeup = function() {
     wakeBtn.classList.remove('wakeup-done-green','wakeup-done-red');
     wakeBtn.classList.add(under6 ? 'wakeup-done-green' : 'wakeup-done-red');
     wakeBtn.style.animation = 'none';
+=======
+  ['clubWakeupBtn', 'clubWakeupBtnNew'].forEach(id => {
+    const wakeBtn = document.getElementById(id);
+    if (!wakeBtn) return;
+    wakeBtn.textContent = `⏰ Woke up at ${time}`;
+    wakeBtn.disabled = true;
+    wakeBtn.classList.remove('wakeup-done-green', 'wakeup-done-red');
+    wakeBtn.classList.add(under6 ? 'wakeup-done-green' : 'wakeup-done-red');
+    wakeBtn.style.animation = 'none';
+  });
+  const noteEl = document.getElementById('clubWakeupNoteNew');
+  if (noteEl) {
+    noteEl.style.display = 'flex';
+    noteEl.textContent = under6 ? '⏰ Woke up – Before 6AM ✅' : '⏰ Woke up – After 6AM ❌';
+>>>>>>> eed6ee4 (BrahmaMode latest updates)
   }
 
   showToast(under6
@@ -2022,12 +2422,25 @@ window.clubCalNext = function() {
 
 function renderClubWakeupCalendar() {
   const cal     = document.getElementById('clubWakeupCal');
+<<<<<<< HEAD
   const titleEl = document.getElementById('clubCalTitle');
   if (!cal) return;
 
   const MONTHS = ['January','February','March','April','May','June',
                   'July','August','September','October','November','December'];
   if (titleEl) titleEl.textContent = `${MONTHS[clubCalMonth]} ${clubCalYear}`;
+=======
+  const calNew  = document.getElementById('clubWakeupCalNew');
+  const titleEl = document.getElementById('clubCalTitle');
+  const titleNew= document.getElementById('clubCalTitleNew');
+  if (!cal && !calNew) return;
+
+  const MONTHS = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+  const titleTxt = `${MONTHS[clubCalMonth]} ${clubCalYear}`;
+  if (titleEl)  titleEl.textContent  = titleTxt;
+  if (titleNew) titleNew.textContent = titleTxt;
+>>>>>>> eed6ee4 (BrahmaMode latest updates)
 
   const todayStr   = getTodayStr();
   const checkinMap = window._clubCheckinMap || {};
@@ -2045,13 +2458,23 @@ function renderClubWakeupCalendar() {
   const firstDay    = new Date(clubCalYear, clubCalMonth, 1).getDay();
   const daysInMonth = new Date(clubCalYear, clubCalMonth + 1, 0).getDate();
 
+<<<<<<< HEAD
   cal.innerHTML = '';
+=======
+  if(cal)    cal.innerHTML    = '';
+  if(calNew) calNew.innerHTML = '';
+>>>>>>> eed6ee4 (BrahmaMode latest updates)
 
   // Empty leading cells
   for (let i = 0; i < firstDay; i++) {
     const e = document.createElement('div');
     e.className = 'club-wakeup-day cwd-empty';
+<<<<<<< HEAD
     cal.appendChild(e);
+=======
+    if(cal)    cal.appendChild(e);
+    if(calNew) calNew.appendChild(e.cloneNode(true));
+>>>>>>> eed6ee4 (BrahmaMode latest updates)
   }
 
   for (let d = 1; d <= daysInMonth; d++) {
@@ -2063,7 +2486,11 @@ function renderClubWakeupCalendar() {
     let timeLabel = '';
     let colored   = false;
 
+<<<<<<< HEAD
     // Wakeup button data takes priority
+=======
+    // Wakeup button localStorage data takes priority
+>>>>>>> eed6ee4 (BrahmaMode latest updates)
     if (wakeupMap[ds]) {
       const { time, under6 } = wakeupMap[ds];
       timeLabel = time;
@@ -2071,17 +2498,42 @@ function renderClubWakeupCalendar() {
       colored = true;
     }
 
+<<<<<<< HEAD
     // Fallback: club attendance time
     if (!colored && checkinMap[ds]) {
       const t    = checkinMap[ds];
       const hh   = parseInt(t.split(':')[0]);
       timeLabel  = t;
       cell.classList.add(hh < 6 ? 'cwd-green' : 'cwd-red');
+=======
+    // Fallback: Supabase club checkin time
+    if (!colored && checkinMap[ds]) {
+      const t    = checkinMap[ds];
+      const hh   = parseInt(t.split(':')[0]);
+      const mm   = parseInt(t.split(':')[1] || '0');
+      timeLabel  = t;
+      // Before 6AM = green, at or after 6AM = red
+      cell.classList.add((hh < 6) ? 'cwd-green' : 'cwd-red');
+      colored = true;
+    }
+
+    // Future date — leave empty/default
+    const cellDate = new Date(clubCalYear, clubCalMonth, d);
+    const now = new Date();
+    now.setHours(0,0,0,0);
+    if (!colored && cellDate < now) {
+      // Past day with no checkin — show as missed (slightly different shade but no color)
+>>>>>>> eed6ee4 (BrahmaMode latest updates)
     }
 
     // Date on top, time below
     cell.innerHTML = `<span class="cwd-num">${d}</span>${timeLabel ? `<span class="cwd-time">${timeLabel}</span>` : ''}`;
+<<<<<<< HEAD
     cal.appendChild(cell);
+=======
+    if(cal)    cal.appendChild(cell);
+    if(calNew) calNew.appendChild(cell.cloneNode(true));
+>>>>>>> eed6ee4 (BrahmaMode latest updates)
   }
 }
 
@@ -2108,3 +2560,1007 @@ window.showClub = function() {
     }
   }
 };
+<<<<<<< HEAD
+=======
+
+// ============================================================
+// BRAHMA LEADERBOARD — REAL DATA
+// ============================================================
+async function renderBrahmaLb() {
+  if (!sb || !navigator.onLine) {
+    const pod = document.getElementById('brahmaPodium');
+    const list = document.getElementById('brahmaLbList');
+    if (pod) pod.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">📵 Offline</div>';
+    if (list) list.innerHTML = '';
+    return;
+  }
+  try {
+    const [{ data: profiles }, { data: allLogs }] = await Promise.all([
+      sb.from('bct_profiles').select('user_id, name, startDate'),
+      sb.from('bct_logs').select('user_id, date, status')
+    ]);
+    if (!profiles) return;
+    const logsByUser = {};
+    (allLogs || []).forEach(r => {
+      if (!logsByUser[r.user_id]) logsByUser[r.user_id] = {};
+      logsByUser[r.user_id][r.date] = r.status;
+    });
+    const warriors = profiles.map(p => {
+      const s = computeUserStats(p, logsByUser[p.user_id] || {});
+      return { ...p, ...s };
+    }).sort((a, b) => b.totalPoints - a.totalPoints || b.currentStreak - a.currentStreak);
+    // Podium
+    const podEl = document.getElementById('brahmaPodium');
+    if (podEl && warriors.length) {
+      const top3 = warriors.slice(0, 3);
+      const order = [top3[1], top3[0], top3[2]];
+      const slots = ['second','first','third'];
+      const heights = ['52px','72px','40px'];
+      podEl.innerHTML = order.map((w, i) => {
+        if (!w) return '';
+        const isMe = currentUser && w.user_id === currentUser.id;
+        return `<div class="podium-slot ${slots[i]}">
+          <div class="podium-avatar-wrap">${slots[i]==='first'?'<div class="podium-crown">👑</div>':''}
+            <div class="podium-avatar${isMe?' is-me':''}">${(w.name||'W')[0].toUpperCase()}</div></div>
+          <div class="podium-name">${w.name}${isMe?' (You)':''}</div>
+          <div class="podium-streak">🔥 ${w.currentStreak} Day</div>
+          <div class="podium-pts"${slots[i]==='first'?' style="color:var(--gold)"':''}>${w.totalPoints.toLocaleString()} pts</div>
+          <div class="podium-block" style="height:${heights[i]}"><span class="podium-block-num">${slots[i]==='second'?2:slots[i]==='first'?1:3}</span></div>
+        </div>`;
+      }).join('');
+    }
+    // List
+    const listEl = document.getElementById('brahmaLbList');
+    if (listEl) {
+      const BADGES = [{days:90,icon:'👑'},{days:30,icon:'✨'},{days:21,icon:'💎'},{days:15,icon:'🥇'},{days:7,icon:'🥈'},{days:3,icon:'🏅'},{days:1,icon:'🪙'}];
+      listEl.innerHTML = warriors.slice(3,20).map((w, i) => {
+        const isMe = currentUser && w.user_id === currentUser.id;
+        const badge = BADGES.find(b => w.bestStreak >= b.days);
+        return `<div class="lb-new-row${isMe?' is-me':''}">
+          <div class="lb-new-rank">${i+4}</div>
+          <div class="lb-new-av">${(w.name||'W')[0].toUpperCase()}</div>
+          <div class="lb-new-info"><div class="lb-new-name">${w.name}${isMe?' (You)':''}</div>
+            <div class="lb-new-sub">${badge?badge.icon+' ':''}${w.currentStreak} Day Streak</div></div>
+          <div class="lb-new-right"><div class="lb-new-pts">${w.totalPoints.toLocaleString()} pts</div></div>
+        </div>`;
+      }).join('');
+    }
+  } catch(e) { console.error('renderBrahmaLb:', e); }
+}
+window.renderBrahmaLb = renderBrahmaLb;
+
+// ============================================================
+// 5AM CLUB LEADERBOARD — REAL DATA
+// ============================================================
+async function renderClubLbNew() {
+  const podEl = document.getElementById('clubLbPodiumNew');
+  const listEl = document.getElementById('clubLbListNew');
+  if (!podEl || !sb || !navigator.onLine) return;
+  try {
+    const [{ data: profiles }, { data: checkins }] = await Promise.all([
+      sb.from('bct_profiles').select('user_id, name'),
+      sb.from('club_checkins').select('user_id, checkin_time, checkin_date, points')
+    ]);
+    if (!profiles || !checkins) return;
+    const nameMap = {};
+    profiles.forEach(p => { nameMap[p.user_id] = p.name; });
+    // Aggregate by user: total points, today checkin
+    const todayStr = new Date().toISOString().split('T')[0];
+    const userMap = {};
+    checkins.forEach(c => {
+      if (!userMap[c.user_id]) userMap[c.user_id] = { totalPts: 0, todayTime: null, name: nameMap[c.user_id]||'Warrior' };
+      userMap[c.user_id].totalPts += (c.points || 0);
+      if (c.checkin_date === todayStr) userMap[c.user_id].todayTime = c.checkin_time;
+    });
+    const warriors = Object.entries(userMap).map(([uid, d]) => ({ uid, ...d }))
+      .sort((a, b) => b.totalPts - a.totalPts);
+    if (!warriors.length) {
+      podEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;font-style:italic">No 5AM check-ins yet</div>';
+      return;
+    }
+    const top3 = warriors.slice(0, 3);
+    const order = [top3[1], top3[0], top3[2]];
+    const slots = ['second','first','third'];
+    podEl.innerHTML = order.map((w, i) => {
+      if (!w) return '';
+      const isMe = currentUser && w.uid === currentUser.id;
+      const timeStr = w.todayTime ? new Date('1970-01-01T'+w.todayTime).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) : '—';
+      return `<div class="clb-slot ${slots[i]}">
+        <div class="clb-av-wrap">${slots[i]==='first'?'<div class="clb-crown">🥇</div>':''}
+          <div class="clb-av">${(w.name||'W')[0].toUpperCase()}</div></div>
+        <div class="clb-name">${w.name}${isMe?' (You)':''}</div>
+        <div class="clb-time">${timeStr}</div>
+        <div class="clb-pts">${w.totalPts} pts total</div>
+        <div class="clb-block"><span class="clb-block-num">${slots[i]==='second'?2:slots[i]==='first'?1:3}</span></div>
+      </div>`;
+    }).join('');
+    if (listEl) {
+      listEl.innerHTML = warriors.slice(3,15).map((w, i) => {
+        const isMe = currentUser && w.uid === currentUser.id;
+        const timeStr = w.todayTime ? new Date('1970-01-01T'+w.todayTime).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}) : '—';
+        return `<div class="club-lb-row${isMe?' is-me':''}">
+          <div class="club-lb-row-rank">${i+4}</div>
+          <div class="club-lb-row-av">${(w.name||'W')[0].toUpperCase()}</div>
+          <div class="club-lb-row-info"><div class="club-lb-row-name">${w.name}${isMe?' (You)':''}</div><div class="club-lb-row-time">${timeStr}</div></div>
+          <div class="club-lb-row-right"><div class="club-lb-row-pts">${w.totalPts} pts</div></div>
+        </div>`;
+      }).join('');
+    }
+  } catch(e) { console.error('renderClubLbNew:', e); }
+}
+window.renderClubLbNew = renderClubLbNew;
+
+// ============================================================
+// COMMUNITY — REAL CHAT + MEMBERS
+// ============================================================
+let commChatSub = null;
+async function loadCommunityFeed() {
+  if (!sb || !navigator.onLine) return;
+  const feed = document.getElementById('commFeed');
+  if (!feed) return;
+  const { data } = await sb.from('chat_messages').select('*').order('created_at',{ascending:true}).limit(80);
+  feed.innerHTML = '';
+  if (!data || !data.length) {
+    feed.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px 20px;font-style:italic">No messages yet. Be the first! ⚔️</div>';
+    return;
+  }
+  let lastDate = null;
+  data.forEach(m => {
+    const ds = m.created_at.split('T')[0];
+    if (ds !== lastDate) {
+      lastDate = ds;
+      const div = document.createElement('div');
+      div.className = 'chat-date-divider';
+      div.textContent = new Date(ds).toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'});
+      feed.appendChild(div);
+    }
+    const isMine = currentUser && m.user_id === currentUser.id;
+    const time = new Date(m.created_at).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+    const wrap = document.createElement('div');
+    wrap.className = `chat-msg-wrap ${isMine?'mine':'theirs'}`;
+    wrap.setAttribute('data-id', m.id);
+    let html = m.image_url ? `<img src="${m.image_url}" class="chat-img-preview" />` : '';
+    if (m.message) html += `<div>${m.message}</div>`;
+    wrap.innerHTML = `<div class="bubble-avatar">${(m.user_name||'W')[0].toUpperCase()}</div>
+      <div class="chat-bubble">${!isMine?`<div class="chat-sender">${m.user_name}</div>`:''}${html}
+        <div class="chat-bubble-meta"><span class="chat-time">${time}</span>${isMine?'<span class="chat-tick">✓✓</span>':''}</div></div>`;
+    feed.appendChild(wrap);
+  });
+  feed.scrollTop = feed.scrollHeight;
+  if (commChatSub) { sb.removeChannel(commChatSub); commChatSub = null; }
+  commChatSub = sb.channel('comm-v2')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'chat_messages'}, payload => {
+      const f = document.getElementById('commFeed'); if (!f) return;
+      const m = payload.new;
+      if (f.querySelector(`[data-id="${m.id}"]`)) return;
+      const isMine = currentUser && m.user_id === currentUser.id;
+      const time = new Date(m.created_at).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+      const wrap = document.createElement('div');
+      wrap.className = `chat-msg-wrap ${isMine?'mine':'theirs'}`;
+      wrap.setAttribute('data-id', m.id);
+      let html = m.image_url ? `<img src="${m.image_url}" class="chat-img-preview" />` : '';
+      if (m.message) html += `<div>${m.message}</div>`;
+      wrap.innerHTML = `<div class="bubble-avatar">${(m.user_name||'W')[0].toUpperCase()}</div>
+        <div class="chat-bubble">${!isMine?`<div class="chat-sender">${m.user_name}</div>`:''}${html}
+          <div class="chat-bubble-meta"><span class="chat-time">${time}</span>${isMine?'<span class="chat-tick">✓✓</span>':''}</div></div>`;
+      f.appendChild(wrap);
+      f.scrollTop = f.scrollHeight;
+    }).subscribe();
+}
+window.loadCommunityFeed = loadCommunityFeed;
+
+async function sendCommMessage() {
+  if (guestBlock('Community Chat')) return;
+  if (!sb || !navigator.onLine) { showToast('📵 Offline'); return; }
+  const inp = document.getElementById('commChatInput');
+  const msg = inp?.value?.trim();
+  if (!msg || !currentUser) return;
+  const name = profile?.name || 'Warrior';
+  inp.value = '';
+  const feed = document.getElementById('commFeed');
+  const tempId = 'temp-' + Date.now();
+  if (feed) {
+    const wrap = document.createElement('div');
+    wrap.className = 'chat-msg-wrap mine';
+    wrap.setAttribute('data-id', tempId);
+    const time = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+    wrap.innerHTML = `<div class="bubble-avatar">${(name[0]||'W').toUpperCase()}</div>
+      <div class="chat-bubble"><div>${msg}</div>
+        <div class="chat-bubble-meta"><span class="chat-time">${time}</span><span class="chat-tick">✓✓</span></div></div>`;
+    feed.appendChild(wrap);
+    feed.scrollTop = feed.scrollHeight;
+  }
+  const { data: ins } = await sb.from('chat_messages').insert({ user_id:currentUser.id, user_name:name, message:msg, is_pinned:false }).select().single();
+  if (ins && feed) { const t = feed.querySelector(`[data-id="${tempId}"]`); if(t) t.setAttribute('data-id', ins.id); }
+}
+window.sendCommMessage = sendCommMessage;
+
+async function loadCommunityMembers() {
+  const list = document.getElementById('commMembersList');
+  if (!list || !sb || !navigator.onLine) return;
+  list.innerHTML = '<div style="color:var(--muted);padding:20px;text-align:center">⏳ Loading warriors...</div>';
+  const [{ data: profiles }, { data: allLogs }] = await Promise.all([
+    sb.from('bct_profiles').select('user_id, name, startDate'),
+    sb.from('bct_logs').select('user_id, date, status')
+  ]);
+  if (!profiles) return;
+  const logsByUser = {};
+  (allLogs || []).forEach(r => { if(!logsByUser[r.user_id]) logsByUser[r.user_id]={}; logsByUser[r.user_id][r.date]=r.status; });
+  const BADGES = [{days:90,icon:'👑',label:'BRAHMACHARI'},{days:30,icon:'✨',label:'OJAS'},{days:21,icon:'💎',label:'VIRA'},{days:15,icon:'🥇',label:'DHIRA'},{days:7,icon:'🥈',label:'TAPASVI'},{days:3,icon:'🏅',label:'ARAMBHA'},{days:1,icon:'🪙',label:'BEGINNER'}];
+  const warriors = profiles.map(p => ({...p,...computeUserStats(p,logsByUser[p.user_id]||{})}))
+    .sort((a,b) => b.currentStreak - a.currentStreak);
+  list.innerHTML = warriors.map(w => {
+    const isMe = currentUser && w.user_id === currentUser.id;
+    const badge = BADGES.find(b => w.currentStreak >= b.days);
+    const active = w.currentStreak > 0;
+    return `<div class="comm-member-row">
+      <div class="comm-member-av" style="${isMe?'border:2px solid var(--gold)':''}">${(w.name||'W')[0].toUpperCase()}</div>
+      <div class="comm-member-info">
+        <div class="comm-member-name">${w.name}${isMe?' (You)':''}</div>
+        <div class="comm-member-streak">🔥 ${w.currentStreak} Day Streak${badge?' • '+badge.icon+' '+badge.label:''}</div>
+      </div>
+      <div style="width:8px;height:8px;border-radius:50%;background:${active?'#10b981':'#6b7280'};flex-shrink:0;box-shadow:${active?'0 0 6px #10b981':'none'}"></div>
+    </div>`;
+  }).join('');
+}
+window.loadCommunityMembers = loadCommunityMembers;
+
+// ============================================================
+// HOME FEED — REAL RECENT ACTIVITY
+// ============================================================
+async function loadHomeFeed() {
+  const feedEl = document.getElementById('v2CommunityFeed');
+  if (!feedEl || !sb || !navigator.onLine) return;
+  const { data: recent } = await sb.from('bct_logs').select('user_id, date, status').eq('status','done').order('date',{ascending:false}).limit(20);
+  if (!recent || !recent.length) return;
+  const { data: profiles } = await sb.from('bct_profiles').select('user_id, name').in('user_id',[...new Set(recent.map(r=>r.user_id))]);
+  const nameMap = {}; (profiles||[]).forEach(p => { nameMap[p.user_id] = p.name; });
+  const COLORS = ['linear-gradient(135deg,var(--purple),#1d0040)','linear-gradient(135deg,#10b981,#059669)','linear-gradient(135deg,#f59e0b,#d97706)','linear-gradient(135deg,#3b82f6,#1d4ed8)','linear-gradient(135deg,#ec4899,#be185d)'];
+  const now = new Date();
+  feedEl.innerHTML = recent.slice(0,5).map((r,i) => {
+    const name = nameMap[r.user_id]||'Warrior';
+    const isMe = currentUser && r.user_id === currentUser.id;
+    const d = Math.floor((now - new Date(r.date)) / 86400000);
+    const t = d===0?'Today':d===1?'Yesterday':`${d} days ago`;
+    return `<div class="v2-feed-item">
+      <div class="v2-feed-avatar" style="background:${COLORS[i%COLORS.length]}">${(name[0]||'W').toUpperCase()}</div>
+      <div class="v2-feed-text"><span class="v2-feed-name">${name}${isMe?' (You)':''}</span> checked in strong! 🔥<div class="v2-feed-time">${t}</div></div>
+    </div>`;
+  }).join('');
+}
+window.loadHomeFeed = loadHomeFeed;
+
+// ============================================================
+// JOURNEY GRAPH — REAL DATA
+// ============================================================
+function renderJourneyGraph() {
+  const lineEl = document.getElementById('jrnGraphLine');
+  const fillEl = document.getElementById('jrnGraphFill');
+  const dotEl  = document.getElementById('jrnGraphDot');
+  if (!lineEl || !fillEl) return;
+  const days = [];
+  for (let i=29; i>=0; i--) {
+    const d = new Date(today); d.setDate(d.getDate()-i);
+    const ds = fmtDate(d);
+    days.push({ d, val: (logs[ds]==='done'||logs[ds]==='redeemed') ? 1 : 0 });
+  }
+  let run = 0;
+  const vals = days.map(({val}) => { run = val ? run+1 : 0; return run; });
+  const maxVal = Math.max(...vals, 1);
+  const W=320, H=90, pL=20, pR=10, pT=8, pB=15;
+  const stepX = (W-pL-pR)/(vals.length-1);
+  const pts = vals.map((v,i) => ({ x: pL+i*stepX, y: pT+(H-pT-pB)*(1-v/maxVal) }));
+  const line = pts.map((p,i) => `${i===0?'M':'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  lineEl.setAttribute('d', line);
+  fillEl.setAttribute('d', line+` L${pts[pts.length-1].x.toFixed(1)},${H-pB} L${pL},${H-pB} Z`);
+  if (dotEl) { dotEl.setAttribute('cx',pts[pts.length-1].x.toFixed(1)); dotEl.setAttribute('cy',pts[pts.length-1].y.toFixed(1)); }
+  const lc = document.querySelector('.jrn-graph-labels');
+  if (lc) {
+    const spans = lc.querySelectorAll('.jrn-graph-label');
+    [0,6,12,18,24,29].forEach((di,i) => { if(spans[i]) spans[i].textContent = days[di].d.toLocaleDateString('en-IN',{day:'numeric',month:'short'}); });
+  }
+}
+window.renderJourneyGraph = renderJourneyGraph;
+
+// ============================================================
+// PROFILE BADGES — REAL DATA
+// ============================================================
+function renderProfileBadges() {
+  const CHAL = [
+    {days:1,label:'Beej',icon:'🪙',metal:'Copper',mc:'#b87333'},
+    {days:3,label:'Arambha',icon:'🏅',metal:'Bronze',mc:'#cd7f32'},
+    {days:7,label:'Tapasvi',icon:'🥈',metal:'Silver',mc:'#c0c0c0'},
+    {days:15,label:'Dhira',icon:'🥇',metal:'Gold',mc:'var(--gold)'},
+    {days:21,label:'Vira',icon:'💎',metal:'Diamond',mc:'#a5f3fc'},
+    {days:30,label:'Ojas',icon:'✨',metal:'Kohinoor',mc:'var(--purple3)'},
+    {days:50,label:'Agni',icon:'🔱',metal:'Titanium',mc:'#94a3b8'},
+    {days:90,label:'Brahmachari',icon:'👑',metal:'Crown',mc:'var(--gold2)'},
+  ];
+  const html = CHAL.map(ch => {
+    const unlocked = currentStreak >= ch.days;
+    const prog = Math.min(100, Math.round((currentStreak/ch.days)*100));
+    const cls = unlocked?'unlocked':currentStreak>0?'in-progress':'locked';
+    return `<div class="badge-card ${cls}">
+      ${unlocked?'<div class="badge-unlock-check">✓</div>':''}
+      <div class="badge-icon">${ch.icon}</div>
+      <div class="badge-name">${ch.label}</div>
+      <div class="badge-day">Day ${ch.days}</div>
+      <div class="badge-metal" style="color:${ch.mc}">— ${ch.metal} —</div>
+      <div class="badge-prog-bar"><div class="badge-prog-fill" style="width:${unlocked?100:prog}%"></div></div>
+      <div class="badge-status">${unlocked?'✅ Unlocked!':currentStreak>0?currentStreak+'/'+ch.days+' days':'🔒 Locked'}</div>
+    </div>`;
+  }).join('');
+  ['profileBadgesGrid','badgesMainGrid'].forEach(id => { const g=document.getElementById(id); if(g) g.innerHTML=html; });
+}
+window.renderProfileBadges = renderProfileBadges;
+
+// ============================================================
+// GROUP COUNTS — REAL MEMBER COUNT
+// ============================================================
+async function loadGroupCounts() {
+  if (!sb || !navigator.onLine) return;
+  try {
+    const { count } = await sb.from('bct_profiles').select('*', { count: 'exact', head: true });
+    const total = count || 0;
+    // Main group = all members
+    const g1 = document.getElementById('groupCountMain');
+    if (g1) g1.textContent = total + '+';
+    // 5AM club = members with any club checkin
+    const { count: c5am } = await sb.from('club_checkins').select('user_id', { count: 'exact', head: true });
+    const g2 = document.getElementById('groupCount5am');
+    if (g2) g2.textContent = (c5am || 0) + '+';
+    // Others = proportional estimates based on real total
+    const g3 = document.getElementById('groupCountMed');
+    if (g3) g3.textContent = Math.floor(total * 0.6) + '+';
+    const g4 = document.getElementById('groupCountDev');
+    if (g4) g4.textContent = Math.floor(total * 0.4) + '+';
+  } catch(e) { console.error('loadGroupCounts:', e); }
+}
+window.loadGroupCounts = loadGroupCounts;
+
+
+
+
+
+
+
+/* ================================================================
+   BrahmaMode PATCH v3.1 — FIXED
+   app.js ke BILKUL BAAD add karo, index.html ke bhi inline script 
+   ke BAAD load hona chahiye.
+   
+   index.html mein ye line add karo app.js script ke BAAD:
+   <script src="brahmamode_patch_v2.js"></script>
+   (defer mat lagao — synchronous load karo taaki DOM ready ho)
+   ================================================================ */
+
+(function() {
+'use strict';
+
+/* ================================================================
+   PART A: COMMUNITY GROUPS — Real Data + Per-Group Chat
+   ================================================================ */
+
+const BM_GROUPS = [
+  { id:'brotherhood', name:'Brotherhood Warriors',   icon:'⚔️',  desc:'Main group',        badge:'LIVE',    bc:'var(--purple2)', bg:'rgba(123,47,255,.15)' },
+  { id:'5am',         name:'5AM Club Warriors',       icon:'🌅',  desc:'Rise together',     badge:'EARLY',   bc:'var(--gold)',    bg:'rgba(245,158,11,.12)' },
+  { id:'meditation',  name:'Meditation Circle',       icon:'🧘',  desc:'Daily practice',    badge:'ACTIVE',  bc:'var(--green2)', bg:'rgba(16,185,129,.1)'  },
+  { id:'knowledge',   name:'Knowledge Seekers',       icon:'📚',  desc:'Shastras & wisdom', badge:'STUDY',   bc:'var(--blue)',   bg:'rgba(59,130,246,.1)'  },
+  { id:'physical',    name:'Physical Discipline',     icon:'🏋️', desc:'Fitness & strength',badge:'FITNESS', bc:'var(--purple3)',bg:'rgba(168,85,247,.12)' },
+  { id:'premanand',   name:'Premanand Ji Followers',  icon:'🙏',  desc:'Devotion & satsang',badge:'SATSANG', bc:'#f472b6',       bg:'rgba(244,114,182,.1)' },
+];
+
+// Override the existing switchCommunityTab — wait until DOM+scripts are fully loaded
+function patchCommunityTab() {
+  // Grab the ORIGINAL function defined in inline script
+  const _orig = window.switchCommunityTab;
+  window.switchCommunityTab = function(tab) {
+    // Call original to handle CSS class toggling and panel show/hide
+    if (typeof _orig === 'function') _orig(tab);
+    // Our additions
+    if (tab === 'groups') {
+      setTimeout(renderRealGroupsList, 50);
+    }
+  };
+}
+
+async function renderRealGroupsList() {
+  const listDiv = document.querySelector('#commPanelGroups .comm-groups-list');
+  if (!listDiv) return;
+
+  listDiv.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-style:italic;font-size:.8rem">⏳ Loading groups...</div>';
+
+  // Get member counts + my groups
+  let memberCounts = {}, myGroups = new Set();
+  const sbRef = window.sb;
+  const cu = window.currentUser;
+
+  if (sbRef && navigator.onLine) {
+    try {
+      const { data: allM } = await sbRef.from('group_members').select('group_id');
+      (allM || []).forEach(r => { memberCounts[r.group_id] = (memberCounts[r.group_id] || 0) + 1; });
+      if (cu) {
+        const { data: myM } = await sbRef.from('group_members').select('group_id').eq('user_id', cu.id);
+        (myM || []).forEach(r => myGroups.add(r.group_id));
+      }
+    } catch(e) { console.warn('group fetch err', e); }
+  }
+
+  listDiv.innerHTML = '';
+  BM_GROUPS.forEach(g => {
+    const count = memberCounts[g.id] || 0;
+    const joined = myGroups.has(g.id);
+    const row = document.createElement('div');
+    row.className = 'comm-group-row';
+    row.style.cursor = 'pointer';
+    row.innerHTML = `
+      <div class="comm-group-icon" style="background:${g.bg};border:1px solid rgba(255,255,255,.12);">${g.icon}</div>
+      <div class="comm-group-info" style="flex:1">
+        <div class="comm-group-name">${g.name}</div>
+        <div class="comm-group-sub">${g.desc} • <b id="gc2_${g.id}">${count}</b> members</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${joined ? '<span style="font-size:.55rem;color:var(--green);">●</span>' : ''}
+        <div class="comm-group-badge" style="color:${g.bc};border-color:${g.bc}44;background:${g.bc}18;">${g.badge}</div>
+      </div>`;
+    row.onclick = () => showGroupOptions(g, joined);
+    listDiv.appendChild(row);
+  });
+}
+
+window.showGroupOptions = function(group, isJoined) {
+  removeEl('bmGModal');
+  const modal = mk('div', {
+    id: 'bmGModal',
+    style: 'position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;justify-content:flex-end;'
+  });
+  const joinedBtn = isJoined
+    ? `<button onclick="bmOpenGroupChat('${group.id}','${group.name}','${group.icon}')" style="${btnStyle('purple')}margin-bottom:10px;">💬 Open Chat</button>
+       <button onclick="bmViewMembers('${group.id}','${group.name}')" style="${btnStyle('ghost')}margin-bottom:10px;">👥 View Members</button>
+       <button onclick="bmLeaveGroup('${group.id}')" style="${btnStyle('red')}margin-bottom:10px;">🚪 Leave Group</button>`
+    : `<button onclick="bmJoinGroup('${group.id}','${group.name}','${group.icon}')" style="${btnStyle('purple')}margin-bottom:10px;">⚔️ Join Group</button>`;
+
+  modal.innerHTML = `
+    <div onclick="removeEl('bmGModal')" style="position:absolute;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);"></div>
+    <div style="position:relative;background:#111118;border-radius:24px 24px 0 0;padding:24px 20px 32px;border-top:1px solid rgba(255,255,255,.1);">
+      <div style="width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.18);margin:0 auto 18px;"></div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+        <div style="width:52px;height:52px;border-radius:16px;background:${group.bg};border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:1.6rem;">${group.icon}</div>
+        <div>
+          <div style="font-family:var(--font-d);font-size:1rem;font-weight:700;color:#fff;">${group.name}</div>
+          <div id="gmCount" style="font-size:.75rem;color:var(--muted);margin-top:3px;">⏳ Loading...</div>
+        </div>
+      </div>
+      <div id="gmAvatars" style="display:flex;margin-bottom:18px;min-height:36px;"></div>
+      ${joinedBtn}
+      <button onclick="removeEl('bmGModal')" style="${btnStyle('ghost')}">Cancel</button>
+    </div>`;
+  document.body.appendChild(modal);
+  loadGModalMeta(group.id);
+};
+
+async function loadGModalMeta(gid) {
+  const sbRef = window.sb; if (!sbRef) return;
+  try {
+    const { data: members } = await sbRef.from('group_members').select('user_id').eq('group_id', gid);
+    const cnt = (members||[]).length;
+    const el = document.getElementById('gmCount');
+    if (el) el.textContent = `👥 ${cnt} member${cnt!==1?'s':''}`;
+    if (members && members.length) {
+      const { data: profs } = await sbRef.from('bct_profiles').select('user_id,name').in('user_id', members.slice(0,7).map(m=>m.user_id));
+      const av = document.getElementById('gmAvatars');
+      if (av && profs) {
+        av.innerHTML = profs.map((p,i)=>
+          `<div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--purple),#a855f7);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.7rem;border:2px solid #111118;margin-left:${i?'-8px':'0'};z-index:${10-i};">${(p.name||'W')[0].toUpperCase()}</div>`
+        ).join('') + (cnt>7?`<div style="padding:0 8px;font-size:.68rem;color:var(--muted);display:flex;align-items:center;">+${cnt-7}</div>`:'');
+      }
+    }
+  } catch(e){}
+}
+
+window.bmJoinGroup = async function(gid, gname, gicon) {
+  const sbRef = window.sb; const cu = window.currentUser;
+  if (!cu || !sbRef) { showToast('❌ Not logged in'); return; }
+  try {
+    await sbRef.from('group_members').upsert({ user_id:cu.id, group_id:gid }, { onConflict:'user_id,group_id' });
+    removeEl('bmGModal');
+    showToast('✅ Joined '+gname+'!');
+    renderRealGroupsList();
+    setTimeout(() => bmOpenGroupChat(gid, gname, gicon), 300);
+  } catch(e) { showToast('❌ '+e.message); }
+};
+
+window.bmLeaveGroup = async function(gid) {
+  const sbRef = window.sb; const cu = window.currentUser;
+  if (!cu || !sbRef) return;
+  try {
+    await sbRef.from('group_members').delete().eq('user_id',cu.id).eq('group_id',gid);
+    removeEl('bmGModal');
+    showToast('🚪 Left group');
+    renderRealGroupsList();
+  } catch(e) { showToast('❌ '+e.message); }
+};
+
+/* ---- Per-Group Chat ---- */
+let activeGid = null, gcSub = null, gcLastDate = null;
+
+window.bmOpenGroupChat = function(gid, gname, gicon) {
+  removeEl('bmGModal');
+  activeGid = gid; gcLastDate = null;
+
+  let scr = document.getElementById('bmGCScr');
+  if (!scr) {
+    scr = mk('div', {
+      id:'bmGCScr',
+      style:'position:fixed;inset:0;z-index:9990;background:var(--bg);display:flex;flex-direction:column;'
+    });
+    scr.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;padding:max(14px,env(safe-area-inset-top)) 16px 12px;background:rgba(11,11,15,.97);border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;">
+        <button onclick="bmCloseGC()" style="background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;line-height:1;padding:2px 6px 2px 0;">←</button>
+        <div id="gcIcon" style="width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;background:rgba(123,47,255,.2);">⚔️</div>
+        <div style="flex:1;min-width:0;">
+          <div id="gcTitle" style="font-family:var(--font-d);font-size:.9rem;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Group</div>
+          <div id="gcMC" style="font-size:.65rem;color:var(--muted);">...</div>
+        </div>
+        <button onclick="bmViewMembers(activeGid,document.getElementById('gcTitle').textContent)" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:.68rem;font-family:var(--font-b);font-weight:700;padding:5px 10px;cursor:pointer;white-space:nowrap;">👥 Members</button>
+      </div>
+      <div id="gcMsgs" style="flex:1;overflow-y:auto;padding:14px 14px 6px;"></div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;padding-bottom:max(10px,env(safe-area-inset-bottom));background:rgba(11,11,15,.97);border-top:1px solid rgba(255,255,255,.08);flex-shrink:0;">
+        <label style="cursor:pointer;font-size:1.25rem;padding:4px 6px;color:rgba(255,255,255,.6);">📷<input id="gcImg" type="file" accept="image/*" style="display:none" onchange="bmSendGCImg(this)"/></label>
+        <input id="gcIn" type="text" placeholder="Message..." maxlength="500"
+          style="flex:1;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:22px;color:#fff;font-family:var(--font-b);font-size:.88rem;padding:10px 16px;outline:none;"
+          onkeydown="if(event.key==='Enter')bmSendGCMsg()"/>
+        <button onclick="bmSendGCMsg()" style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--purple),#a855f7);border:none;color:#fff;font-size:1.1rem;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">➤</button>
+      </div>`;
+    document.body.appendChild(scr);
+  }
+  document.getElementById('gcIcon').textContent = gicon;
+  document.getElementById('gcTitle').textContent = gname;
+  scr.style.display = 'flex';
+
+  loadGCMsgs(gid);
+  subGC(gid);
+  // Member count
+  const sbRef = window.sb;
+  if (sbRef) sbRef.from('group_members').select('*',{count:'exact',head:true}).eq('group_id',gid).then(({count})=>{
+    const el=document.getElementById('gcMC'); if(el) el.textContent=(count||0)+' members';
+  });
+};
+
+window.bmCloseGC = function() {
+  const s = document.getElementById('bmGCScr');
+  if (s) s.style.display = 'none';
+  if (gcSub) { try { window.sb.removeChannel(gcSub); } catch(e){} gcSub = null; }
+  activeGid = null;
+};
+
+async function loadGCMsgs(gid) {
+  const box = document.getElementById('gcMsgs'); if (!box) return;
+  const sbRef = window.sb; if (!sbRef) return;
+  box.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px;font-size:.8rem;font-style:italic;">⏳ Loading...</div>';
+  gcLastDate = null;
+  const { data } = await sbRef.from('group_messages').select('*').eq('group_id',gid).order('created_at',{ascending:true}).limit(100);
+  box.innerHTML = '';
+  if (!data || !data.length) {
+    box.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px 20px;font-style:italic;font-size:.82rem;">🌟 Koi message nahi yet.<br>Pehla bolo, warrior!</div>';
+    return;
+  }
+  data.forEach(m => addGCBubble(m, box));
+  box.scrollTop = box.scrollHeight;
+}
+
+function addGCBubble(m, box) {
+  const cu = window.currentUser;
+  const isMine = cu && m.user_id === cu.id;
+  const time = new Date(m.created_at).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  const ds = m.created_at.split('T')[0];
+  if (ds !== gcLastDate) {
+    gcLastDate = ds;
+    const div = document.createElement('div');
+    div.style.cssText = 'text-align:center;font-size:.62rem;color:var(--muted);margin:10px 0;';
+    div.textContent = new Date(ds).toLocaleDateString('en-IN',{day:'numeric',month:'long'});
+    box.appendChild(div);
+  }
+  const wrap = document.createElement('div');
+  wrap.setAttribute('data-id', m.id);
+  wrap.style.cssText = `display:flex;flex-direction:${isMine?'row-reverse':'row'};align-items:flex-end;gap:8px;margin-bottom:8px;`;
+  let content = m.image_url ? `<img src="${m.image_url}" style="max-width:190px;border-radius:10px;display:block;margin-bottom:2px;" onclick="window.open('${m.image_url}','_blank')"/>` : '';
+  if (m.message) content += `<div style="font-size:.88rem;line-height:1.4;word-break:break-word;">${m.message}</div>`;
+  const bubBg = isMine ? 'linear-gradient(135deg,#6d28d9,#7c3aed)' : 'rgba(255,255,255,.09)';
+  const bubR = isMine ? '18px 18px 4px 18px' : '18px 18px 18px 4px';
+  wrap.innerHTML = `
+    <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--purple),#a855f7);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.65rem;flex-shrink:0;">${(m.user_name||'W')[0].toUpperCase()}</div>
+    <div style="max-width:74%;background:${bubBg};border-radius:${bubR};padding:9px 12px;">
+      ${!isMine?`<div style="font-size:.62rem;color:var(--purple3);font-weight:700;margin-bottom:3px;">${m.user_name||'Warrior'}</div>`:''}
+      ${content}
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:3px;margin-top:3px;">
+        <span style="font-size:.58rem;color:rgba(255,255,255,.35);">${time}</span>
+        ${isMine?'<span style="font-size:.62rem;color:var(--green);">✓✓</span>':''}
+      </div>
+    </div>`;
+  box.appendChild(wrap);
+}
+
+function subGC(gid) {
+  const sbRef = window.sb; if (!sbRef) return;
+  if (gcSub) { try { sbRef.removeChannel(gcSub); } catch(e){} gcSub = null; }
+  gcSub = sbRef.channel('gc-' + gid)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'group_messages',filter:'group_id=eq.'+gid}, payload => {
+      const box = document.getElementById('gcMsgs'); if (!box) return;
+      const m = payload.new;
+      if (box.querySelector('[data-id="'+m.id+'"]')) return;
+      addGCBubble(m, box);
+      box.scrollTop = box.scrollHeight;
+      // Notification if chat hidden
+      const scr = document.getElementById('bmGCScr');
+      if (!scr || scr.style.display === 'none') {
+        bmAddNotif('group_msg','💬 '+m.user_name, (m.message||'').slice(0,60)||'📷 Photo');
+      }
+    }).subscribe();
+}
+
+window.bmSendGCMsg = async function() {
+  const sbRef = window.sb; const cu = window.currentUser;
+  if (!sbRef || !navigator.onLine || !activeGid || !cu) return;
+  const inp = document.getElementById('gcIn');
+  const msg = inp?.value?.trim(); if (!msg) return;
+  inp.value = '';
+  const name = window.profile?.name || 'Warrior';
+  const box = document.getElementById('gcMsgs');
+  const tempId = 'tmp-' + Date.now();
+  const tempM = { id:tempId, group_id:activeGid, user_id:cu.id, user_name:name, message:msg, image_url:null, created_at:new Date().toISOString() };
+  if (box) { addGCBubble(tempM, box); box.scrollTop = box.scrollHeight; }
+  const { data:ins } = await sbRef.from('group_messages').insert({ group_id:activeGid, user_id:cu.id, user_name:name, message:msg }).select().single();
+  if (ins && box) { const t=box.querySelector('[data-id="'+tempId+'"]'); if(t) t.setAttribute('data-id',ins.id); }
+};
+
+window.bmSendGCImg = async function(input) {
+  const sbRef = window.sb; const cu = window.currentUser;
+  if (!input.files || !input.files[0] || !cu || !activeGid) return;
+  const file = input.files[0];
+  const ext = file.name.split('.').pop();
+  const path = `group/${activeGid}/${cu.id}_${Date.now()}.${ext}`;
+  if (typeof showToast==='function') showToast('📤 Uploading...');
+  const { error } = await sbRef.storage.from('chat-images').upload(path, file);
+  if (error) { if (typeof showToast==='function') showToast('❌ Upload failed'); return; }
+  const { data:urlData } = sbRef.storage.from('chat-images').getPublicUrl(path);
+  const name = window.profile?.name || 'Warrior';
+  await sbRef.from('group_messages').insert({ group_id:activeGid, user_id:cu.id, user_name:name, message:'', image_url:urlData.publicUrl });
+  input.value = '';
+  if (typeof showToast==='function') showToast('✅ Photo sent!');
+};
+
+/* ---- Members Screen ---- */
+window.bmViewMembers = async function(gid, gname) {
+  removeEl('bmGModal');
+  let scr = document.getElementById('bmMemScr');
+  if (!scr) {
+    scr = mk('div',{id:'bmMemScr',style:'position:fixed;inset:0;z-index:9991;background:var(--bg);overflow-y:auto;'});
+    document.body.appendChild(scr);
+  }
+  scr.style.display='block';
+  scr.innerHTML=`
+    <div style="position:sticky;top:0;z-index:5;padding:max(14px,env(safe-area-inset-top)) 16px 12px;background:rgba(11,11,15,.97);border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:12px;">
+      <button onclick="document.getElementById('bmMemScr').style.display='none'" style="background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;line-height:1;">←</button>
+      <div style="font-family:var(--font-d);font-size:.88rem;font-weight:700;color:#fff;">👥 ${gname} — Members</div>
+    </div>
+    <div id="bmMemList" style="padding:16px;"><div style="text-align:center;color:var(--muted);padding:30px;font-style:italic;">⏳ Loading...</div></div>
+    <div style="height:20px;"></div>`;
+
+  const sbRef = window.sb; if (!sbRef || !navigator.onLine) return;
+  const { data:members } = await sbRef.from('group_members').select('user_id').eq('group_id',gid);
+  if (!members || !members.length) {
+    document.getElementById('bmMemList').innerHTML='<div style="text-align:center;color:var(--muted);padding:30px;font-style:italic;">No members yet</div>';
+    return;
+  }
+  const [{ data:profiles },{ data:allLogs }] = await Promise.all([
+    sbRef.from('bct_profiles').select('user_id,name,startDate').in('user_id',members.map(m=>m.user_id)),
+    sbRef.from('bct_logs').select('user_id,date,status')
+  ]);
+  const lbu = {};
+  (allLogs||[]).forEach(r=>{ if(!lbu[r.user_id]) lbu[r.user_id]={}; lbu[r.user_id][r.date]=r.status; });
+  const BDGS=[{d:90,i:'👑'},{d:30,i:'✨'},{d:21,i:'💎'},{d:15,i:'🥇'},{d:7,i:'🥈'},{d:3,i:'🏅'},{d:1,i:'🪙'}];
+  const cu = window.currentUser;
+  const warriors = (profiles||[]).map(p=>{
+    const s = typeof computeUserStats==='function' ? computeUserStats(p,lbu[p.user_id]||{}) : {currentStreak:0,totalPoints:0,bestStreak:0};
+    return {...p,...s};
+  }).sort((a,b)=>b.currentStreak-a.currentStreak);
+
+  document.getElementById('bmMemList').innerHTML = warriors.map(w=>{
+    const isMe = cu && w.user_id===cu.id;
+    const bdg = BDGS.find(b=>w.currentStreak>=b.d);
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px;background:${isMe?'rgba(123,47,255,.1)':'rgba(255,255,255,.03)'};border:1px solid ${isMe?'rgba(168,85,247,.25)':'rgba(255,255,255,.06)'};border-radius:14px;margin-bottom:8px;">
+      <div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--purple),#a855f7);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.9rem;flex-shrink:0;">${(w.name||'W')[0].toUpperCase()}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-family:var(--font-d);font-size:.82rem;font-weight:700;color:${isMe?'var(--gold)':'#fff'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.name}${isMe?' (You)':''}</div>
+        <div style="font-size:.68rem;color:var(--muted);margin-top:2px;">🔥 ${w.currentStreak} days ${bdg?bdg.i:''}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:.75rem;color:var(--gold);font-weight:700;">⚡${w.totalPoints}</div>
+        <div style="font-size:.6rem;color:${w.currentStreak>0?'var(--green)':'var(--muted)'};">${w.currentStreak>0?'● Active':'○ Resting'}</div>
+      </div>
+      ${!isMe?`<button onclick="bmDMFrom('${w.user_id}','${w.name}')" style="background:rgba(123,47,255,.2);border:1px solid rgba(168,85,247,.3);border-radius:8px;color:var(--purple3);font-size:.65rem;font-family:var(--font-b);font-weight:700;padding:5px 8px;cursor:pointer;flex-shrink:0;">💬 DM</button>`:''}
+    </div>`;
+  }).join('');
+};
+
+window.bmDMFrom = function(uid, uname) {
+  document.getElementById('bmMemScr').style.display='none';
+  if (typeof showScreen==='function') showScreen('chatScreen');
+  setTimeout(()=>{ if(typeof openDMWith==='function') openDMWith(uid,uname); },300);
+};
+
+/* ================================================================
+   PART B: NOTIFICATION BELL
+   ================================================================ */
+let bmNotifs = [];
+let bmUnread = 0;
+
+function injectNotifBell() {
+  if (document.getElementById('bmBell')) return;
+  if (window._guestMode) return; // No notif bell in guest mode
+  const bell = document.createElement('button');
+  bell.id = 'bmBell';
+  bell.onclick = bmOpenNotifs;
+  bell.style.cssText = 'position:fixed;top:max(14px,env(safe-area-inset-top));right:14px;z-index:9000;width:40px;height:40px;border-radius:50%;background:rgba(17,17,24,.9);border:1px solid rgba(255,255,255,.12);color:#fff;font-size:1rem;cursor:pointer;backdrop-filter:blur(10px);box-shadow:0 2px 16px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;';
+  bell.innerHTML = '🔔<span id="bmBellDot" style="display:none;position:absolute;top:4px;right:4px;min-width:10px;height:10px;background:#ef4444;border-radius:5px;border:2px solid #111118;font-size:.5rem;color:#fff;display:none;align-items:center;justify-content:center;padding:0 2px;"></span>';
+  document.body.appendChild(bell);
+}
+
+window.bmAddNotif = function(type, title, body) {
+  bmNotifs.unshift({ type, title, body, read:false, time:new Date() });
+  bmUnread++;
+  updBellDot();
+  // Save to DB
+  const sbRef=window.sb; const cu=window.currentUser;
+  if (sbRef&&navigator.onLine&&cu) {
+    sbRef.from('notifications').insert({user_id:cu.id,type,title,body,is_read:false}).then(()=>{});
+  }
+};
+
+function updBellDot() {
+  const dot = document.getElementById('bmBellDot');
+  if (!dot) return;
+  if (bmUnread > 0) {
+    dot.style.display = 'flex';
+    dot.textContent = bmUnread > 9 ? '9+' : String(bmUnread);
+  } else {
+    dot.style.display = 'none';
+  }
+}
+
+window.bmOpenNotifs = async function() {
+  bmUnread = 0; updBellDot();
+  bmNotifs.forEach(n=>n.read=true);
+  // Load from DB
+  const sbRef=window.sb; const cu=window.currentUser;
+  if (sbRef&&navigator.onLine&&cu) {
+    try {
+      await sbRef.from('notifications').update({is_read:true}).eq('user_id',cu.id).eq('is_read',false);
+      const {data} = await sbRef.from('notifications').select('*').eq('user_id',cu.id).order('created_at',{ascending:false}).limit(40);
+      if (data) bmNotifs = data.map(n=>({type:n.type,title:n.title,body:n.body,read:true,time:new Date(n.created_at)}));
+    } catch(e){}
+  }
+
+  removeEl('bmNPanel');
+  const panel = mk('div',{id:'bmNPanel',style:'position:fixed;inset:0;z-index:9995;display:flex;flex-direction:column;justify-content:flex-end;'});
+  const ICONS = {group_msg:'💬',daily_winner:'🏆',weekly_winner:'⭐',monthly_top:'🌟','5am_winner':'🌅',streak:'🔥',default:'🔔'};
+  
+  const items = bmNotifs.length
+    ? bmNotifs.slice(0,30).map(n=>`
+        <div style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.05);">
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(123,47,255,.15);border:1px solid rgba(168,85,247,.2);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">${ICONS[n.type]||ICONS.default}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:.8rem;font-weight:700;color:#fff;line-height:1.3;">${n.title}</div>
+            <div style="font-size:.72rem;color:rgba(255,255,255,.55);margin-top:2px;line-height:1.3;word-break:break-word;">${n.body}</div>
+            <div style="font-size:.62rem;color:var(--muted);margin-top:4px;">${getAgo(n.time)}</div>
+          </div>
+        </div>`).join('')
+    : '<div style="text-align:center;padding:40px 20px;color:var(--muted);font-style:italic;font-size:.82rem;">🔔No Notifications Yet<br><span style="font-size:.72rem;">Community updates will appear here</span></div>';
+
+  panel.innerHTML = `
+    <div onclick="removeEl('bmNPanel')" style="position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);"></div>
+    <div style="position:relative;background:#111118;border-radius:24px 24px 0 0;max-height:78vh;display:flex;flex-direction:column;border-top:1px solid rgba(255,255,255,.1);">
+      <div style="padding:20px 20px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+        <div style="font-family:var(--font-d);font-size:1rem;font-weight:700;color:#fff;letter-spacing:.5px;">🔔 Notifications</div>
+        <button onclick="removeEl('bmNPanel')" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;font-size:.72rem;padding:5px 12px;cursor:pointer;font-family:var(--font-b);">Close ✕</button>
+      </div>
+      <div style="flex:1;overflow-y:auto;margin-top:12px;">${items}</div>
+    </div>`;
+  document.body.appendChild(panel);
+};
+
+function getAgo(date) {
+  const d = Math.floor((Date.now()-new Date(date).getTime())/60000);
+  if (d<1) return 'Abhi abhi';
+  if (d<60) return d+'m pehle';
+  const h=Math.floor(d/60); if(h<24) return h+'h pehle';
+  return Math.floor(h/24)+'d pehle';
+}
+
+/* ================================================================
+   PART C: 5AM Club Tab — Leaderboard Table
+   ================================================================ */
+
+function inject5amLbTable() {
+  // Find the club tab wrapper
+  const clubTab = document.getElementById('tab-club');
+  if (!clubTab || document.getElementById('c5amlb')) return;
+
+  const wrapper = clubTab.querySelector('[style*="max-width"]') || clubTab.firstElementChild;
+  if (!wrapper) return;
+
+  const sec = document.createElement('div');
+  sec.id = 'c5amlb';
+  sec.innerHTML = `
+    <div style="margin:0 16px 80px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);overflow:hidden;">
+      <div style="padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-family:var(--font-d);font-size:.78rem;font-weight:700;color:#fff;letter-spacing:1px;text-transform:uppercase;">🌅 5AM Warriors</div>
+        <button onclick="bm5amLoad()" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.25);color:var(--gold);padding:4px 11px;border-radius:7px;font-size:.66rem;font-family:var(--font-b);font-weight:700;cursor:pointer;">↻ Refresh</button>
+      </div>
+      <div style="display:flex;margin:0 16px 10px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.08);">
+        <button id="bm5t0" class="bm5tab active" onclick="bm5amSwitch('today')" style="flex:1;padding:7px 2px;background:rgba(245,158,11,.18);border:none;color:var(--gold);font-family:var(--font-b);font-weight:700;font-size:.68rem;cursor:pointer;border-right:1px solid rgba(255,255,255,.08);">Today</button>
+        <button id="bm5t1" class="bm5tab" onclick="bm5amSwitch('streak')" style="flex:1;padding:7px 2px;background:rgba(255,255,255,.04);border:none;color:var(--muted);font-family:var(--font-b);font-weight:700;font-size:.68rem;cursor:pointer;border-right:1px solid rgba(255,255,255,.08);">Streak</button>
+        <button id="bm5t2" class="bm5tab" onclick="bm5amSwitch('pts')" style="flex:1;padding:7px 2px;background:rgba(255,255,255,.04);border:none;color:var(--muted);font-family:var(--font-b);font-weight:700;font-size:.68rem;cursor:pointer;">Points</button>
+      </div>
+      <div id="bm5body" style="padding:0 16px 14px;">
+        <div style="text-align:center;color:var(--muted);padding:18px;font-size:.78rem;">Tap Refresh to load</div>
+      </div>
+    </div>`;
+  wrapper.appendChild(sec);
+}
+
+let bm5tab = 'today';
+
+window.bm5amSwitch = function(t) {
+  bm5tab = t;
+  ['bm5t0','bm5t1','bm5t2'].forEach((id,i)=>{
+    const b=document.getElementById(id); if(!b) return;
+    const active=['today','streak','pts'][i]===t;
+    b.style.background = active?'rgba(245,158,11,.18)':'rgba(255,255,255,.04)';
+    b.style.color = active?'var(--gold)':'var(--muted)';
+  });
+  bm5amLoad();
+};
+
+window.bm5amLoad = async function() {
+  const body = document.getElementById('bm5body'); if (!body) return;
+  const sbRef=window.sb;
+  if (!sbRef||!navigator.onLine) { body.innerHTML='<div style="text-align:center;color:var(--muted);padding:16px;font-size:.78rem;">📵 Offline</div>'; return; }
+  body.innerHTML='<div style="text-align:center;color:var(--muted);padding:16px;font-size:.78rem;">⏳ Loading...</div>';
+  try {
+    const today=getTodayStr();
+    const [{data:profs},{data:chks}]=await Promise.all([
+      sbRef.from('bct_profiles').select('user_id,name'),
+      sbRef.from('club_checkins').select('user_id,checkin_date,checkin_time,points')
+    ]);
+    const nm={}; (profs||[]).forEach(p=>{nm[p.user_id]=p.name;});
+    const um={};
+    (chks||[]).forEach(c=>{
+      if(!um[c.user_id]) um[c.user_id]={name:nm[c.user_id]||'Warrior',uid:c.user_id,pts:0,ttime:null,tpts:0,dates:[]};
+      um[c.user_id].pts+=(c.points||0);
+      um[c.user_id].dates.push(c.checkin_date);
+      if(c.checkin_date===today){um[c.user_id].ttime=c.checkin_time;um[c.user_id].tpts=c.points||0;}
+    });
+    // Compute streaks
+    const ws=Object.values(um).map(u=>{
+      const sd=[...new Set(u.dates)].sort((a,b)=>b.localeCompare(a));
+      let st=0,ch=today;
+      for(let i=0;i<365;i++){if(sd.includes(ch)){st++;ch=offsetDate(ch,-1);}else break;}
+      return {...u,streak:st};
+    });
+    let sorted;
+    if(bm5tab==='today'){
+      sorted=ws.filter(w=>w.ttime).sort((a,b)=>a.ttime.localeCompare(b.ttime));
+      if(!sorted.length){body.innerHTML='<div style="text-align:center;color:var(--muted);padding:20px;font-style:italic;font-size:.78rem;">👀 Aaj abhi koi nahi aaya<br><span style="font-size:.68rem;">Window opens at 5AM</span></div>';return;}
+    } else if(bm5tab==='streak'){
+      sorted=ws.sort((a,b)=>b.streak-a.streak||b.pts-a.pts);
+    } else {
+      sorted=ws.sort((a,b)=>b.pts-a.pts||b.streak-a.streak);
+    }
+    const RE=['🥇','🥈','🥉'];
+    const cu=window.currentUser;
+    let html='';
+    sorted.slice(0,20).forEach((w,i)=>{
+      const isMe=cu&&w.uid===cu.id;
+      const rank=RE[i]||(i+1);
+      const tStr=w.ttime?new Date('1970-01-01T'+w.ttime).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):'—';
+      let mv,ms;
+      if(bm5tab==='today'){mv=`<span style="color:var(--green2);font-weight:700;font-size:.82rem;">${tStr}</span>`;ms=`+${w.tpts}pts`;}
+      else if(bm5tab==='streak'){mv=`<span style="color:var(--gold);font-weight:700;">${w.streak}d</span>`;ms=tStr!=='—'?'🌅 '+tStr:'';}
+      else{mv=`<span style="color:var(--purple3);font-weight:700;">${w.pts}</span>`;ms='🔥'+w.streak+'d';}
+      html+=`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);${isMe?'background:rgba(123,47,255,.08);border-radius:8px;padding:8px 6px;margin:2px 0;':''}">
+        <div style="width:24px;text-align:center;font-size:.8rem;font-weight:700;">${rank}</div>
+        <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--purple),#a855f7);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.7rem;flex-shrink:0;">${(w.name||'W')[0].toUpperCase()}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.78rem;font-weight:700;color:${isMe?'var(--gold)':'#fff'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.name}${isMe?' (You)':''}</div>
+          <div style="font-size:.62rem;color:var(--muted);">${ms}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;">${mv}</div>
+      </div>`;
+    });
+    if(!sorted.length) html='<div style="text-align:center;color:var(--muted);padding:16px;font-size:.78rem;">No data yet</div>';
+    body.innerHTML=html;
+  } catch(e){
+    console.error('bm5amLoad',e);
+    body.innerHTML='<div style="color:#ef4444;padding:14px;font-size:.78rem;">❌ Error: '+e.message+'</div>';
+  }
+};
+
+/* ================================================================
+   UTILS
+   ================================================================ */
+function mk(tag, attrs) {
+  const el = document.createElement(tag);
+  if (attrs) Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));
+  return el;
+}
+window.removeEl = function(id) { const e=document.getElementById(id); if(e) e.remove(); };
+function btnStyle(type) {
+  const base='width:100%;padding:13px;border-radius:13px;font-family:var(--font-b);font-size:.86rem;font-weight:700;cursor:pointer;';
+  if(type==='purple') return base+'background:linear-gradient(135deg,var(--purple),#a855f7);border:none;color:#fff;';
+  if(type==='ghost') return base+'background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#fff;';
+  if(type==='red') return base+'background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);color:#ef4444;';
+  return base;
+}
+
+/* ================================================================
+   INIT — wait for app.js to finish loading
+   ================================================================ */
+function bmInit() {
+  patchCommunityTab();
+  injectNotifBell();
+  inject5amLbTable();
+
+  // Patch bnav to trigger 5am lb load
+  const _ob = window.bnav;
+  if (typeof _ob==='function') {
+    window.bnav = function(tab) {
+      _ob(tab);
+      if(tab==='club') setTimeout(bm5amLoad, 500);
+    };
+  }
+
+  // Load initial unread count from DB
+  const sbRef=window.sb; const cu=window.currentUser;
+  if (sbRef&&cu&&navigator.onLine) {
+    sbRef.from('notifications').select('id',{count:'exact',head:true}).eq('user_id',cu.id).eq('is_read',false).then(({count})=>{
+      bmUnread=count||0; updBellDot();
+    });
+    // Subscribe real-time notifs
+    sbRef.channel('notif-'+cu.id)
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:'user_id=eq.'+cu.id}, payload=>{
+        const n=payload.new;
+        bmNotifs.unshift({type:n.type,title:n.title,body:n.body,read:false,time:new Date(n.created_at)});
+        bmUnread++; updBellDot();
+      }).subscribe();
+
+    // Daily winner check
+    const ck='bm_win_'+getTodayStr();
+    if (!localStorage.getItem(ck)) {
+      setTimeout(async()=>{
+        try {
+          const today=getTodayStr();
+          const {data:c5}=await sbRef.from('club_checkins').select('user_id,checkin_time,points').eq('checkin_date',today).order('checkin_time',{ascending:true}).limit(1);
+          if(c5&&c5.length&&c5[0].user_id!==cu.id){
+            const {data:p}=await sbRef.from('bct_profiles').select('name').eq('user_id',c5[0].user_id).maybeSingle();
+            if(p) bmAddNotif('5am_winner','🌅 5AM Winner Today!', (p.name||'Warrior')+' woke up at '+c5[0].checkin_time+' — '+c5[0].points+' pts');
+          }
+          localStorage.setItem(ck,'1');
+        } catch(e){}
+      }, 3000);
+    }
+  }
+
+  console.log('✅ BrahmaMode Patch v3.1 ready');
+}
+
+// Run after full page load (scripts + DOM)
+if (document.readyState === 'complete') {
+  setTimeout(bmInit, 500);
+} else {
+  window.addEventListener('load', () => setTimeout(bmInit, 500));
+}
+
+})(); // end IIFE
+>>>>>>> eed6ee4 (BrahmaMode latest updates)
