@@ -498,6 +498,7 @@ body{background:var(--purple-deep);color:var(--white);font-family:var(--font-b);
 @keyframes wakeupPulse{0%,100%{box-shadow:0 4px 20px rgba(123,47,255,.5)}50%{box-shadow:0 4px 36px rgba(168,85,247,.85)}}
 .wakeup-done-green{background:linear-gradient(135deg,#065f46,#10b981)!important;animation:none!important}
 .wakeup-done-red{background:linear-gradient(135deg,#7f1d1d,#ef4444)!important;animation:none!important}
+.wakeup-active-yellow{background:linear-gradient(135deg,#92400e,#f59e0b)!important;border-color:#fcd34d!important;box-shadow:0 4px 20px rgba(245,158,11,.5)!important}
 
 @media(max-width:600px){
   .club-wakeup-day{min-height:56px;padding:4px 1px}
@@ -718,3 +719,8 @@ body{background:var(--purple-deep);color:var(--white);font-family:var(--font-b);
   /* Toast */
   .toast{font-size:.82rem;padding:.6rem 1rem;bottom:1rem;left:1rem;right:1rem;text-align:center}
 }
+
+/* Calendar bottom legend */
+.cal-bottom-legend{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:.75rem;padding-top:.75rem;border-top:1px solid rgba(168,85,247,.15)}
+.cal-leg-item{display:flex;align-items:center;gap:.35rem;font-size:.72rem;color:var(--muted);font-family:var(--font-b)}
+.cal-leg-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0;display:inline-block}

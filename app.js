@@ -95,7 +95,7 @@ function showScreen(id) {
 function initSB() {
   try {
     if (window.supabase && window.supabase.createClient) {
-      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      sb = window.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       console.log('✅ Supabase ready');
     } else {
       console.warn('Supabase CDN not loaded — offline mode');
@@ -284,7 +284,7 @@ async function onLogin(user) {
   // Remove guest UI if present
   const gb = document.getElementById('guestBanner');
   if (gb) gb.remove();
-  currentUser = user;
+  currentUser = window.currentUser = user;
   // Load profile
   const { data: prof } = await sb.from('bct_profiles').select('*').eq('user_id', user.id).maybeSingle();
   if (!prof) {
@@ -292,7 +292,7 @@ async function onLogin(user) {
     showScreen('authScreen');
     return;
   }
-  profile = prof;
+ profile = window.profile = prof;
   // Load logs
   const { data: logRows } = await sb.from('bct_logs').select('*').eq('user_id', user.id);
   logs = {};
@@ -1246,6 +1246,7 @@ async function init() {
   const { data: { session } } = await sb.auth.getSession();
   if (session && session.user) {
     await onLogin(session.user);
+    injectNotifBell();
   } else {
     showScreen('authScreen');
     el('regStartDate').value = todayStr;
@@ -1255,6 +1256,8 @@ async function init() {
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session && session.user && !currentUser) {
       await onLogin(session.user);
+      injectNotifBell();   
+
     } else if (event === 'SIGNED_OUT') {
       currentUser = null; profile = null; logs = {}; triggers = [];
       showScreen('authScreen');
@@ -1358,49 +1361,62 @@ function updateClubClock() {
       : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
   }
 
+  const earlySecs = 4 * 3600; // 4:00 AM
   let timeText, statusText;
-  if (totalSecs < openSecs) {
-    timeText = `Opens in ${fmt(openSecs - totalSecs)}`;
-    statusText = 'Window closed – opens again at 5:00 AM';
+  if (totalSecs < earlySecs) {
+    timeText = `Opens in ${fmt(earlySecs - totalSecs)}`;
+    statusText = 'Window closed – opens again at 4:00 AM';
+  } else if (totalSecs < openSecs) {
+    // Early Bird window: 4AM–5AM
+    const earlyRemain = openSecs - totalSecs;
+    timeText = `Early Bird — ${fmt(earlyRemain)} left`;
+    statusText = '⭐ Early Bird Window! 60 pts — Mark attendance now!';
   } else if (totalSecs < closeSecs) {
     const remaining = closeSecs - totalSecs;
     const lateSecs  = totalSecs - openSecs;
-    const pts = Math.max(0, 60 - Math.floor(lateSecs / 60));
+    const pts = Math.max(1, 60 - Math.floor(lateSecs / 60));
     timeText = `Closes in ${fmt(remaining)}`;
     statusText = lateSecs < 60
       ? '✅ Window Open! Check in for full 60 pts!'
       : `⏱ ${Math.floor(lateSecs / 60)} min late — ${pts} pts available`;
   } else {
-    timeText = `Opens in ${fmt((24 * 3600) - totalSecs + openSecs)}`;
-    statusText = 'Window closed – opens again at 5:00 AM';
+    timeText = `Opens in ${fmt((24 * 3600) - totalSecs + earlySecs)}`;
+    statusText = 'Window closed – opens again at 4:00 AM';
   }
 
   setClubText(['clubTime', 'clubTimeNew'], timeText);
   setClubText(['clubWindowStatus', 'clubWindowStatusNew'], statusText);
 
   const totalMins = Math.floor(totalSecs / 60);
-  updateClubButtons(totalMins, openSecs / 60, closeSecs / 60);
+  updateClubButtons(totalMins, earlySecs / 60, closeSecs / 60);
 }
 
 function applyJoinBtnState(btn, alreadyDone, totalMins, openMins, closeMins, isNew) {
   if (!btn) return;
   const baseClass = isNew ? 'club-attendance-btn' : 'btn-club-join';
+  const inWindow  = (totalMins >= openMins && totalMins < closeMins);
+  // Live points calculation (4AM=60, 5AM=60, 5:01+ decreasing, 4AM-5AM = Early Bird 60pts)
+  const earlyBird = (totalMins >= 4 * 60 && totalMins < openMins);
+  const lateMins  = Math.max(0, totalMins - openMins);
+  let pts;
+  if (earlyBird) pts = 60;
+  else if (inWindow) pts = Math.max(1, 60 - lateMins);
+  else pts = null;
+
   if (alreadyDone) {
     btn.textContent = '✅ Attendance Done!';
     btn.className = `${baseClass} done-state`;
     btn.disabled = true;
-  } else if (totalMins >= openMins && totalMins < closeMins) {
-    btn.textContent = '🌅 ATTENDANCE';
-    btn.className = `${baseClass} active-window`;
-    btn.disabled = false;
-  } else if (totalMins < openMins) {
-    btn.textContent = '🔒 ATTENDANCE — Opens 5 AM';
-    btn.className = isNew ? `${baseClass} locked-state` : baseClass;
-    btn.disabled = true;
   } else {
-    btn.textContent = '🔒 Window Closed — See you tomorrow';
-    btn.className = isNew ? `${baseClass} locked-state` : baseClass;
-    btn.disabled = true;
+    // Always enabled — green if in window or early bird, red text if outside
+    if (inWindow || earlyBird) {
+      btn.textContent = pts !== null ? `🌅 ATTENDANCE — ${pts} pts` : '🌅 ATTENDANCE';
+      btn.className = `${baseClass} active-window`;
+    } else {
+      btn.textContent = '⏰ WAKEUP ATTENDANCE';
+      btn.className = `${baseClass} outside-window`;
+    }
+    btn.disabled = false; // always enabled
   }
 }
 
@@ -1433,69 +1449,20 @@ function applyWakeBtnState(btn, wakeData, alreadyDone) {
 
 async function updateClubButtons(totalMins, openMins, closeMins) {
   const joinBtn   = document.getElementById('clubJoinBtn');
-<<<<<<< HEAD
-  const wakeBtn   = document.getElementById('clubWakeupBtn');
-  if (!joinBtn) return;
-=======
   const joinBtnNew = document.getElementById('clubJoinBtnNew');
   const wakeBtn   = document.getElementById('clubWakeupBtn');
   const wakeBtnNew = document.getElementById('clubWakeupBtnNew');
   if (!joinBtn && !joinBtnNew) return;
->>>>>>> eed6ee4 (BrahmaMode latest updates)
 
   const todayStr    = getTodayStr();
   const alreadyDone = await hasClubCheckinToday(todayStr);
   const wakeKey  = 'bm_wakeup_' + todayStr;
   const wakeData = localStorage.getItem(wakeKey);
 
-<<<<<<< HEAD
-  // ── ATTENDANCE BUTTON ──────────────────────────────────────
-  if (alreadyDone) {
-    joinBtn.textContent = '✅ Attendance Done!';
-    joinBtn.className   = 'btn-club-join done-state';
-    joinBtn.disabled    = true;
-  } else if (totalMins >= openMins && totalMins < closeMins) {
-    joinBtn.textContent = '🌅 ATTENDANCE';
-    joinBtn.className   = 'btn-club-join active-window';
-    joinBtn.disabled    = false;
-  } else {
-    joinBtn.textContent = '🔒 ATTENDANCE — Opens 5 AM';
-    joinBtn.className   = 'btn-club-join';
-    joinBtn.disabled    = true;
-  }
-
-  // ── WAKEUP BUTTON ─────────────────────────────────────────
-  if (!wakeBtn) return;
-  const wakeKey  = 'bm_wakeup_' + todayStr;
-  const wakeData = localStorage.getItem(wakeKey);
-
-  if (wakeData) {
-    // Already marked wakeup manually
-    const { time, under6 } = JSON.parse(wakeData);
-    wakeBtn.textContent = `⏰ Woke up at ${time}`;
-    wakeBtn.disabled    = true;
-    wakeBtn.classList.remove('wakeup-done-green','wakeup-done-red');
-    wakeBtn.classList.add(under6 ? 'wakeup-done-green' : 'wakeup-done-red');
-    wakeBtn.style.animation = 'none';
-  } else if (alreadyDone) {
-    // Attended 5AM → auto-mark wakeup as done too
-    wakeBtn.textContent = '⏰ Woke up — Auto marked ✅';
-    wakeBtn.disabled    = true;
-    wakeBtn.classList.remove('wakeup-done-green','wakeup-done-red');
-    wakeBtn.classList.add('wakeup-done-green');
-    wakeBtn.style.animation = 'none';
-  } else {
-    wakeBtn.textContent = '⏰ WAKE UP';
-    wakeBtn.disabled    = false;
-    wakeBtn.classList.remove('wakeup-done-green','wakeup-done-red');
-    wakeBtn.style.animation = '';
-  }
-=======
   applyJoinBtnState(joinBtn, alreadyDone, totalMins, openMins, closeMins, false);
   applyJoinBtnState(joinBtnNew, alreadyDone, totalMins, openMins, closeMins, true);
   applyWakeBtnState(wakeBtn, wakeData, alreadyDone);
   applyWakeBtnState(wakeBtnNew, wakeData, alreadyDone);
->>>>>>> eed6ee4 (BrahmaMode latest updates)
 }
 
 async function hasClubCheckinToday(dateStr) {
@@ -1517,13 +1484,19 @@ async function clubCheckIn() {
   const totalMins = h * 60 + m;
   const openMins  = 5 * 60;  // 5:00 AM
   const closeMins = 6 * 60;  // 6:00 AM
+  const earlyBird = (totalMins >= 4 * 60 && totalMins < openMins);
+  const inWindow  = (totalMins >= openMins && totalMins < closeMins);
 
-  if (totalMins < openMins || totalMins >= closeMins) {
-    showToast('⏰ Window closed! Come at 5:00 AM'); return;
+  // Points logic: 4AM-5AM = 60 pts (Early Bird), 5AM sharp = 60, 5:01-5:59 = 60-mins, 6AM+ = 0
+  let points;
+  if (earlyBird) {
+    points = 60; // ⭐ Early Bird — same as 5AM
+  } else if (inWindow) {
+    const lateMins = totalMins - openMins;
+    points = Math.max(1, 60 - lateMins);
+  } else {
+    points = 0; // outside window — still save the wakeup, 0 pts
   }
-
-  const late   = Math.max(0, totalMins - openMins);
-  const points = Math.max(0, 60 - late);
   const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
   const dateStr = getTodayStr();
 
@@ -1548,12 +1521,8 @@ async function clubCheckIn() {
     q.push({ user_id: currentUser.id, checkin_date: dateStr, checkin_time: timeStr, points });
     localStorage.setItem('bm_club_queue', JSON.stringify(q));
     showToast(`📵 Offline — attendance saved! Syncs when online (+${points} pts)`, 4000);
-<<<<<<< HEAD
-    if (joinBtn) { joinBtn.className = 'btn-club-join done-state'; joinBtn.disabled = true; joinBtn.textContent = '✅ Attendance Done!'; }
-=======
     applyJoinBtnState(document.getElementById('clubJoinBtn'), true, 0, 0, 0, false);
     applyJoinBtnState(document.getElementById('clubJoinBtnNew'), true, 0, 0, 0, true);
->>>>>>> eed6ee4 (BrahmaMode latest updates)
     setTimeout(() => { window.open(CLUB_ZOOM_LINK, '_blank'); }, 800);
     return;
   }
@@ -1572,24 +1541,73 @@ async function clubCheckIn() {
   }
 
   showToast(`✅ Attendance at ${timeStr} — +${points} pts!`, 4000);
-<<<<<<< HEAD
-  if (joinBtn) { joinBtn.className = 'btn-club-join done-state'; joinBtn.disabled = true; joinBtn.textContent = '✅ Attendance Done!'; }
-=======
   applyJoinBtnState(document.getElementById('clubJoinBtn'), true, totalMins, openMins, closeMins, false);
   applyJoinBtnState(document.getElementById('clubJoinBtnNew'), true, totalMins, openMins, closeMins, true);
   applyWakeBtnState(document.getElementById('clubWakeupBtn'), null, true);
   applyWakeBtnState(document.getElementById('clubWakeupBtnNew'), null, true);
->>>>>>> eed6ee4 (BrahmaMode latest updates)
   loadClubData();
   setTimeout(() => { window.open(CLUB_ZOOM_LINK, '_blank'); }, 800);
 }
 
 async function loadClubData() {
-  if (!currentUser || !sb || !navigator.onLine) return;
+  if (!currentUser) return;
+  if (!sb || !navigator.onLine) {
+    // Load from localStorage cache when offline
+    loadClubDataFromCache();
+    return;
+  }
   await Promise.all([
     loadMyClubHistory(),
     loadClubLeaderboard()
   ]);
+}
+
+function loadClubDataFromCache() {
+  const _upd = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
+  // Read all club checkins from localStorage
+  const checkinMap = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('bm_club_')) {
+      const ds = k.replace('bm_club_', '');
+      try { const v = JSON.parse(localStorage.getItem(k)); checkinMap[ds] = v; } catch(e) {}
+    }
+  }
+  const dates = Object.keys(checkinMap).sort((a,b) => b.localeCompare(a));
+  // Compute streak
+  let streak = 0;
+  const todayD = getTodayStr();
+  let check = todayD;
+  for (let i = 0; i < 100; i++) {
+    if (checkinMap[check]) { streak++; check = offsetDate(check, -1); } else { break; }
+  }
+  window._clubStreak = streak;
+  _upd('clubStreak', streak); _upd('clubStreakNew', streak);
+  // Total pts
+  const clubTotalPts = Object.values(checkinMap).reduce((s,v) => s + (v.points||0), 0);
+  window._clubTotalPts = clubTotalPts;
+  _upd('clubTotalPts', clubTotalPts); _upd('clubTotalPtsNew', clubTotalPts);
+  // Today pts
+  const todayRec = checkinMap[todayD];
+  window._clubPtsToday = todayRec ? todayRec.points : null;
+  const todayPtsText = todayRec ? `${todayRec.points} pts` : '—';
+  _upd('clubPtsToday', todayPtsText); _upd('clubPtsTodayNew', todayPtsText);
+  // Best streak
+  const allDates = [...new Set(dates)].sort();
+  let clubBest = 0, runStreak = 0;
+  for (let i = 0; i < allDates.length; i++) {
+    if (i === 0) { runStreak = 1; } else {
+      const diff = (new Date(allDates[i]) - new Date(allDates[i-1])) / 86400000;
+      runStreak = diff === 1 ? runStreak + 1 : 1;
+    }
+    if (runStreak > clubBest) clubBest = runStreak;
+  }
+  window._clubBestStreak = clubBest;
+  _upd('clubBestStreak', clubBest); _upd('clubBestStreakNew', clubBest);
+  // Build checkin time map for calendar
+  window._clubCheckinMap = {};
+  Object.keys(checkinMap).forEach(ds => { window._clubCheckinMap[ds] = checkinMap[ds].time; });
+  renderClubWakeupCalendar();
 }
 
 async function loadMyClubHistory() {
@@ -1640,38 +1658,12 @@ async function loadMyClubHistory() {
   _upd('clubBestStreak', clubBest);
   _upd('clubBestStreakNew', clubBest);
 
-  // 5AM Club total points (sum of all check-in points)
-  const clubTotalPts = (data || []).reduce((sum, r) => sum + (r.points || 0), 0);
-  const clubTotalEl  = document.getElementById('clubTotalPts');
-  if (clubTotalEl) clubTotalEl.textContent = clubTotalPts;
-
-  // 5AM Club best streak (longest consecutive days)
-  const allDates = [...new Set((data || []).map(r => r.checkin_date))].sort();
-  let bestStreak = 0, runStreak = 0;
-  for (let i = 0; i < allDates.length; i++) {
-    if (i === 0) { runStreak = 1; }
-    else {
-      const diff = (new Date(allDates[i]) - new Date(allDates[i-1])) / 86400000;
-      runStreak = diff === 1 ? runStreak + 1 : 1;
-    }
-    if (runStreak > bestStreak) bestStreak = runStreak;
-  }
-  const clubBestEl = document.getElementById('clubBestStreak');
-  if (clubBestEl) clubBestEl.textContent = bestStreak;
-
   // Today's points
   const todayRec = (data || []).find(r => r.checkin_date === today);
   window._clubPtsToday = todayRec ? todayRec.points : null;
   const todayPtsText = todayRec ? `${todayRec.points} pts` : '—';
   _upd('clubPtsToday', todayPtsText);
   _upd('clubPtsTodayNew', todayPtsText);
-
-  // Build checkin map: date -> time
-  window._clubCheckinMap = {};
-  (data || []).forEach(r => { window._clubCheckinMap[r.checkin_date] = r.checkin_time; });
-
-  // Render wakeup calendar
-  renderClubWakeupCalendar();
 
   // Build checkin map: date -> time
   window._clubCheckinMap = {};
@@ -2373,15 +2365,6 @@ window.markWakeup = function() {
 
   localStorage.setItem(wakeKey, JSON.stringify({ time, under6 }));
 
-<<<<<<< HEAD
-  const wakeBtn = document.getElementById('clubWakeupBtn');
-  if (wakeBtn) {
-    wakeBtn.textContent = `⏰ Woke up at ${time}`;
-    wakeBtn.disabled    = true;
-    wakeBtn.classList.remove('wakeup-done-green','wakeup-done-red');
-    wakeBtn.classList.add(under6 ? 'wakeup-done-green' : 'wakeup-done-red');
-    wakeBtn.style.animation = 'none';
-=======
   ['clubWakeupBtn', 'clubWakeupBtnNew'].forEach(id => {
     const wakeBtn = document.getElementById(id);
     if (!wakeBtn) return;
@@ -2395,7 +2378,6 @@ window.markWakeup = function() {
   if (noteEl) {
     noteEl.style.display = 'flex';
     noteEl.textContent = under6 ? '⏰ Woke up – Before 6AM ✅' : '⏰ Woke up – After 6AM ❌';
->>>>>>> eed6ee4 (BrahmaMode latest updates)
   }
 
   showToast(under6
@@ -2422,14 +2404,6 @@ window.clubCalNext = function() {
 
 function renderClubWakeupCalendar() {
   const cal     = document.getElementById('clubWakeupCal');
-<<<<<<< HEAD
-  const titleEl = document.getElementById('clubCalTitle');
-  if (!cal) return;
-
-  const MONTHS = ['January','February','March','April','May','June',
-                  'July','August','September','October','November','December'];
-  if (titleEl) titleEl.textContent = `${MONTHS[clubCalMonth]} ${clubCalYear}`;
-=======
   const calNew  = document.getElementById('clubWakeupCalNew');
   const titleEl = document.getElementById('clubCalTitle');
   const titleNew= document.getElementById('clubCalTitleNew');
@@ -2440,7 +2414,6 @@ function renderClubWakeupCalendar() {
   const titleTxt = `${MONTHS[clubCalMonth]} ${clubCalYear}`;
   if (titleEl)  titleEl.textContent  = titleTxt;
   if (titleNew) titleNew.textContent = titleTxt;
->>>>>>> eed6ee4 (BrahmaMode latest updates)
 
   const todayStr   = getTodayStr();
   const checkinMap = window._clubCheckinMap || {};
@@ -2458,23 +2431,15 @@ function renderClubWakeupCalendar() {
   const firstDay    = new Date(clubCalYear, clubCalMonth, 1).getDay();
   const daysInMonth = new Date(clubCalYear, clubCalMonth + 1, 0).getDate();
 
-<<<<<<< HEAD
-  cal.innerHTML = '';
-=======
   if(cal)    cal.innerHTML    = '';
   if(calNew) calNew.innerHTML = '';
->>>>>>> eed6ee4 (BrahmaMode latest updates)
 
   // Empty leading cells
   for (let i = 0; i < firstDay; i++) {
     const e = document.createElement('div');
     e.className = 'club-wakeup-day cwd-empty';
-<<<<<<< HEAD
-    cal.appendChild(e);
-=======
     if(cal)    cal.appendChild(e);
     if(calNew) calNew.appendChild(e.cloneNode(true));
->>>>>>> eed6ee4 (BrahmaMode latest updates)
   }
 
   for (let d = 1; d <= daysInMonth; d++) {
@@ -2486,11 +2451,7 @@ function renderClubWakeupCalendar() {
     let timeLabel = '';
     let colored   = false;
 
-<<<<<<< HEAD
-    // Wakeup button data takes priority
-=======
     // Wakeup button localStorage data takes priority
->>>>>>> eed6ee4 (BrahmaMode latest updates)
     if (wakeupMap[ds]) {
       const { time, under6 } = wakeupMap[ds];
       timeLabel = time;
@@ -2498,14 +2459,6 @@ function renderClubWakeupCalendar() {
       colored = true;
     }
 
-<<<<<<< HEAD
-    // Fallback: club attendance time
-    if (!colored && checkinMap[ds]) {
-      const t    = checkinMap[ds];
-      const hh   = parseInt(t.split(':')[0]);
-      timeLabel  = t;
-      cell.classList.add(hh < 6 ? 'cwd-green' : 'cwd-red');
-=======
     // Fallback: Supabase club checkin time
     if (!colored && checkinMap[ds]) {
       const t    = checkinMap[ds];
@@ -2523,17 +2476,12 @@ function renderClubWakeupCalendar() {
     now.setHours(0,0,0,0);
     if (!colored && cellDate < now) {
       // Past day with no checkin — show as missed (slightly different shade but no color)
->>>>>>> eed6ee4 (BrahmaMode latest updates)
     }
 
     // Date on top, time below
     cell.innerHTML = `<span class="cwd-num">${d}</span>${timeLabel ? `<span class="cwd-time">${timeLabel}</span>` : ''}`;
-<<<<<<< HEAD
-    cal.appendChild(cell);
-=======
     if(cal)    cal.appendChild(cell);
     if(calNew) calNew.appendChild(cell.cloneNode(true));
->>>>>>> eed6ee4 (BrahmaMode latest updates)
   }
 }
 
@@ -2560,8 +2508,6 @@ window.showClub = function() {
     }
   }
 };
-<<<<<<< HEAD
-=======
 
 // ============================================================
 // BRAHMA LEADERBOARD — REAL DATA
@@ -2975,7 +2921,7 @@ async function renderRealGroupsList() {
   const sbRef = window.sb;
   const cu = window.currentUser;
 
-  if (sbRef && navigator.onLine) {
+  if (sbRef) {
     try {
       const { data: allM } = await sbRef.from('group_members').select('group_id');
       (allM || []).forEach(r => { memberCounts[r.group_id] = (memberCounts[r.group_id] || 0) + 1; });
@@ -3201,7 +3147,7 @@ function subGC(gid) {
 
 window.bmSendGCMsg = async function() {
   const sbRef = window.sb; const cu = window.currentUser;
-  if (!sbRef || !navigator.onLine || !activeGid || !cu) return;
+  if (!sbRef || !activeGid || !cu) return;
   const inp = document.getElementById('gcIn');
   const msg = inp?.value?.trim(); if (!msg) return;
   inp.value = '';
@@ -3247,7 +3193,7 @@ window.bmViewMembers = async function(gid, gname) {
     <div id="bmMemList" style="padding:16px;"><div style="text-align:center;color:var(--muted);padding:30px;font-style:italic;">⏳ Loading...</div></div>
     <div style="height:20px;"></div>`;
 
-  const sbRef = window.sb; if (!sbRef || !navigator.onLine) return;
+  const sbRef = window.sb; if (!sbRef) return;
   const { data:members } = await sbRef.from('group_members').select('user_id').eq('group_id',gid);
   if (!members || !members.length) {
     document.getElementById('bmMemList').innerHTML='<div style="text-align:center;color:var(--muted);padding:30px;font-style:italic;">No members yet</div>';
@@ -3396,7 +3342,7 @@ function inject5amLbTable() {
     <div style="margin:0 16px 80px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:var(--radius);overflow:hidden;">
       <div style="padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;">
         <div style="font-family:var(--font-d);font-size:.78rem;font-weight:700;color:#fff;letter-spacing:1px;text-transform:uppercase;">🌅 5AM Warriors</div>
-        <button onclick="bm5amLoad()" style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.25);color:var(--gold);padding:4px 11px;border-radius:7px;font-size:.66rem;font-family:var(--font-b);font-weight:700;cursor:pointer;">↻ Refresh</button>
+        
       </div>
       <div style="display:flex;margin:0 16px 10px;border-radius:8px;overflow:hidden;border:1px solid rgba(255,255,255,.08);">
         <button id="bm5t0" class="bm5tab active" onclick="bm5amSwitch('today')" style="flex:1;padding:7px 2px;background:rgba(245,158,11,.18);border:none;color:var(--gold);font-family:var(--font-b);font-weight:700;font-size:.68rem;cursor:pointer;border-right:1px solid rgba(255,255,255,.08);">Today</button>
@@ -3404,10 +3350,11 @@ function inject5amLbTable() {
         <button id="bm5t2" class="bm5tab" onclick="bm5amSwitch('pts')" style="flex:1;padding:7px 2px;background:rgba(255,255,255,.04);border:none;color:var(--muted);font-family:var(--font-b);font-weight:700;font-size:.68rem;cursor:pointer;">Points</button>
       </div>
       <div id="bm5body" style="padding:0 16px 14px;">
-        <div style="text-align:center;color:var(--muted);padding:18px;font-size:.78rem;">Tap Refresh to load</div>
+        <div style="text-align:center;color:var(--muted);padding:18px;font-size:.78rem;">⏳ Loading...</div>
       </div>
     </div>`;
   wrapper.appendChild(sec);
+  setTimeout(()=>window.bm5amLoad(), 300);
 }
 
 let bm5tab = 'today';
@@ -3426,7 +3373,7 @@ window.bm5amSwitch = function(t) {
 window.bm5amLoad = async function() {
   const body = document.getElementById('bm5body'); if (!body) return;
   const sbRef=window.sb;
-  if (!sbRef||!navigator.onLine) { body.innerHTML='<div style="text-align:center;color:var(--muted);padding:16px;font-size:.78rem;">📵 Offline</div>'; return; }
+  if (!sbRef) { setTimeout(()=>window.bm5amLoad(), 800); return; }
   body.innerHTML='<div style="text-align:center;color:var(--muted);padding:16px;font-size:.78rem;">⏳ Loading...</div>';
   try {
     const today=getTodayStr();
@@ -3509,7 +3456,6 @@ function btnStyle(type) {
    ================================================================ */
 function bmInit() {
   patchCommunityTab();
-  injectNotifBell();
   inject5amLbTable();
 
   // Patch bnav to trigger 5am lb load
@@ -3563,4 +3509,3 @@ if (document.readyState === 'complete') {
 }
 
 })(); // end IIFE
->>>>>>> eed6ee4 (BrahmaMode latest updates)

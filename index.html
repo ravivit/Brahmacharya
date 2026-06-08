@@ -477,10 +477,14 @@ color:#d946ef;
 
 /* 5AM Stats */
 .club-stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:16px; margin-top:-4px; }
-.club-stat-box { background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); border-radius:14px; padding:12px 6px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:4px; }
-.club-stat-top { display:flex; align-items:center; gap:3px; }
-.club-stat-num { font-family:var(--font-d); font-size:1.1rem; font-weight:900; color:#fff; }
-.club-stat-lbl { font-size:.57rem; color:var(--muted); letter-spacing:.3px; text-transform:uppercase; }
+.club-stat-box { background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius-sm); padding:12px 6px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:4px; }
+.club-stat-box:nth-child(1) { border-color:rgba(168,85,247,.3); background:rgba(123,47,255,.08); }
+.club-stat-box:nth-child(2) { border-color:rgba(245,158,11,.25); background:rgba(245,158,11,.06); }
+.club-stat-box:nth-child(3) { border-color:rgba(245,158,11,.25); background:rgba(245,158,11,.06); }
+.club-stat-box:nth-child(4) { border-color:rgba(16,185,129,.25); background:rgba(16,185,129,.06); }
+.club-stat-top { display:flex; align-items:center; justify-content:center; gap:3px; }
+.club-stat-num { font-family:var(--font-d); font-size:1.3rem; font-weight:900; color:#fff; }
+.club-stat-lbl { font-size:.6rem; color:var(--muted); letter-spacing:.4px; text-transform:uppercase; }
 
 /* Attendance Card */
 .club-attendance-card { margin:0 16px 16px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09); border-radius:var(--radius); padding:20px 18px; text-align:center; }
@@ -527,15 +531,15 @@ color:#d946ef;
 .wkcal-cell { aspect-ratio:1; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); position:relative; }
 .wkcal-cell.cwd-empty { background:none; border:none; }
 .wkcal-cell.cwd-today { border-color:var(--purple2); box-shadow:0 0 8px rgba(168,85,247,.35); }
-.wkcal-cell.cwd-green { background:rgba(16,185,129,.2); border-color:rgba(16,185,129,.4); }
-.wkcal-cell.cwd-red { background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.25); }
+.wkcal-cell.cwd-green { background:#10b981; border-color:#059669; box-shadow:0 2px 10px rgba(16,185,129,.4); }
+.wkcal-cell.cwd-red { background:#ef4444; border-color:#dc2626; box-shadow:0 2px 8px rgba(239,68,68,.4); }
 .wkcal-cell .cwd-num { font-family:var(--font-b); font-size:.75rem; font-weight:700; color:rgba(255,255,255,.7); line-height:1; }
-.wkcal-cell.cwd-green .cwd-num { color:var(--green2); }
-.wkcal-cell.cwd-red .cwd-num { color:#fca5a5; }
+.wkcal-cell.cwd-green .cwd-num { color:#fff; font-weight:700; }
+.wkcal-cell.cwd-red .cwd-num { color:#fff; font-weight:700; }
 .wkcal-cell.cwd-today .cwd-num { color:var(--purple3); }
 .wkcal-cell .cwd-time { font-size:.5rem; color:rgba(255,255,255,.5); line-height:1; margin-top:2px; }
-.wkcal-cell.cwd-green .cwd-time { color:var(--green2); }
-.wkcal-cell.cwd-red .cwd-time { color:#fca5a5; }
+.wkcal-cell.cwd-green .cwd-time { color:rgba(255,255,255,.85); }
+.wkcal-cell.cwd-red .cwd-time { color:rgba(255,255,255,.85); }
 
 /* Legend */
 .wkcal-legend { display:flex; gap:12px; justify-content:center; margin-top:12px; flex-wrap:wrap; }
@@ -949,12 +953,12 @@ color:#d946ef;
 .club-wakeup-day{aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);transition:all .2s}
 .cwd-empty{background:none!important;border:none!important}
 .cwd-today{border-color:var(--purple2)!important;box-shadow:0 0 8px rgba(168,85,247,.35)}
-.cwd-green{background:rgba(16,185,129,.2)!important;border-color:rgba(16,185,129,.4)!important}
-.cwd-red{background:rgba(239,68,68,.12)!important;border-color:rgba(239,68,68,.25)!important}
+.cwd-green{background:#10b981!important;border-color:#059669!important;box-shadow:0 2px 10px rgba(16,185,129,.4)!important}
+.cwd-red{background:#ef4444!important;border-color:#dc2626!important;box-shadow:0 2px 8px rgba(239,68,68,.4)!important}
 .cwd-num{font-family:var(--font-b);font-size:.72rem;font-weight:700;color:rgba(255,255,255,.7);line-height:1}
 .cwd-time{font-size:.48rem;color:rgba(255,255,255,.5);line-height:1;margin-top:1px}
-.cwd-green .cwd-num{color:var(--green2)}.cwd-green .cwd-time{color:var(--green2)}
-.cwd-red .cwd-num{color:#fca5a5}.cwd-red .cwd-time{color:#fca5a5}
+.cwd-green .cwd-num{color:#fff;font-weight:700}.cwd-green .cwd-time{color:rgba(255,255,255,.85)}
+.cwd-red .cwd-num{color:#fff;font-weight:700}.cwd-red .cwd-time{color:rgba(255,255,255,.85)}
 .club-cal-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:.5rem}
 .club-cal-legend-item{display:flex;align-items:center;gap:4px;font-size:.7rem;color:rgba(255,255,255,.6)}
 .club-cal-legend-dot{width:10px;height:10px;border-radius:50%}
@@ -998,6 +1002,106 @@ color:#d946ef;
   .badge-icon{font-size:1.5rem}
   .badge-name{font-size:.55rem}
   .pts-table-grid{grid-template-columns:1fr 1fr}
+}
+
+/* ============================================================
+   TABLET (768px+)
+   ============================================================ */
+@media(min-width:768px){
+  body { background:radial-gradient(ellipse at 20% 20%,rgba(123,47,255,.12),transparent 50%), radial-gradient(ellipse at 80% 80%,rgba(245,158,11,.07),transparent 50%), var(--bg); }
+
+  .bottom-nav { max-width:720px; left:50%; transform:translateX(-50%); border-radius:20px 20px 0 0; border:1px solid rgba(255,255,255,.1); border-bottom:none; }
+
+  .v2-app, .bm-screen, .wkcal-screen, .club-lb-screen, .badges-screen, .points-screen, .profile-screen, .community-screen, .app { max-width:720px; padding-left:24px; padding-right:24px; }
+
+  .auth-box { max-width:520px; padding:3rem 2rem; }
+
+  /* Stat cards bigger on tablet */
+  .v2-stat-card-num { font-size:1.6rem; }
+  .v2-stat-card-label { font-size:.72rem; }
+
+  /* Club stats 4-col stays but bigger */
+  .club-stat-num { font-size:1.5rem; }
+  .club-stat-lbl { font-size:.65rem; }
+  .club-stat-box { padding:16px 10px; }
+
+  /* Calendar cells bigger */
+  .v2-calendar .day-cell { border-radius:10px; }
+  .v2-calendar .day-cell .day-num { font-size:.88rem; }
+  .day-cell { min-height:44px; border-radius:10px; }
+  .day-cell .day-num { font-size:.82rem; }
+
+  /* Today card */
+  .v2-today-card { padding:28px 24px; }
+
+  /* Leaderboard */
+  .v2-lb-row, .lb-new-row { padding:12px 16px; }
+
+  /* Install popup */
+  .install-popup-box { max-width:460px; padding:2.5rem 2rem; }
+
+  /* Header */
+  .v2-streak-card { padding:22px 18px; }
+}
+
+/* ============================================================
+   LAPTOP / DESKTOP (1024px+)
+   ============================================================ */
+@media(min-width:1024px){
+  .bottom-nav { max-width:800px; }
+
+  .v2-app, .bm-screen, .wkcal-screen, .club-lb-screen, .badges-screen, .points-screen, .profile-screen, .community-screen, .app { max-width:800px; padding-left:32px; padding-right:32px; }
+
+  /* Side nav option — make bottom nav look like sidebar on large screens */
+  .bottom-nav {
+    position:fixed; bottom:0; left:50%; transform:translateX(-50%);
+    max-width:800px; border-radius:20px 20px 0 0;
+    padding:10px 40px max(10px,env(safe-area-inset-bottom));
+  }
+  .bnav-btn { padding:8px 16px; gap:5px; }
+  .bnav-icon { font-size:1.5rem; }
+  .bnav-label { font-size:.72rem; }
+
+  /* 2-col layout for home sections on desktop */
+  #mainScreen .v2-section:nth-child(3),
+  #mainScreen .v2-section:nth-child(4) { }
+
+  /* Stat cards */
+  .v2-stat-card { padding:18px 12px !important; }
+  .v2-stat-card-num { font-size:1.8rem !important; }
+  .v2-stat-card-label { font-size:.75rem !important; }
+
+  /* Club stat boxes */
+  .club-stat-num { font-size:1.6rem; }
+  .club-stat-box { padding:18px 12px; border-radius:14px; }
+
+  /* Calendar cells */
+  .day-cell { min-height:48px; }
+  .day-cell .day-num { font-size:.9rem; }
+  .v2-calendar .day-cell .day-num { font-size:.95rem; }
+
+  /* Today card */
+  .v2-today-card { padding:32px 28px; }
+
+  /* Auth box */
+  .auth-box { max-width:560px; padding:4rem 3rem; }
+
+  /* Install popup */
+  .install-popup-box { max-width:480px; }
+
+  /* Streak card */
+  .v2-streak-card { padding:28px 24px; }
+
+  /* Content fonts scale up slightly */
+  .v2-section-title { font-size:1rem; }
+}
+
+/* ============================================================
+   WIDE DESKTOP (1280px+) — content stays centered, bg shows
+   ============================================================ */
+@media(min-width:1280px){
+  .v2-app, .bm-screen, .wkcal-screen, .club-lb-screen, .badges-screen, .points-screen, .profile-screen, .community-screen, .app { max-width:860px; }
+  .bottom-nav { max-width:860px; }
 }
 </style>
 </head>
@@ -1234,17 +1338,17 @@ color:#d946ef;
 
       <!-- Stats row (128 | 90 | 6) -->
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
-        <div class="v2-stat-card" style="border-color:rgba(168,85,247,.2);background:rgba(123,47,255,.08);text-align:center;padding:14px 8px;">
+        <div class="v2-stat-card" style="border-color:rgba(168,85,247,.45);background:rgba(123,47,255,.08);text-align:center;padding:14px 8px;box-shadow:0 0 10px rgba(168,85,247,.2);">
           <div style="font-size:1.3rem;line-height:1;margin-bottom:2px;">🔥</div>
           <div class="v2-stat-card-num" id="headerStreak">0</div>
           <div class="v2-stat-card-label">Day Streak</div>
         </div>
-        <div class="v2-stat-card" style="border-color:rgba(245,158,11,.2);background:rgba(245,158,11,.06);text-align:center;padding:14px 8px;">
+        <div class="v2-stat-card" style="border-color:rgba(245,158,11,.45);background:rgba(245,158,11,.06);text-align:center;padding:14px 8px;box-shadow:0 0 10px rgba(245,158,11,.2);">
           <div style="font-size:1.3rem;line-height:1;margin-bottom:2px;">⚡</div>
           <div class="v2-stat-card-num" id="headerPoints">0</div>
           <div class="v2-stat-card-label">Total Points</div>
         </div>
-        <div class="v2-stat-card" style="border-color:rgba(16,185,129,.2);background:rgba(16,185,129,.06);text-align:center;padding:14px 8px;">
+        <div class="v2-stat-card" style="border-color:rgba(16,185,129,.45);background:rgba(16,185,129,.06);text-align:center;padding:14px 8px;box-shadow:0 0 10px rgba(16,185,129,.2);">
           <div style="font-size:1.3rem;line-height:1;margin-bottom:2px;">🏆</div>
           <div class="v2-stat-card-num" id="headerBest">0</div>
           <div class="v2-stat-card-label">Best Streak</div>
@@ -1271,22 +1375,21 @@ color:#d946ef;
 
     <!-- SECTION 3 — BRAHMACHARYA CALENDAR -->
     <section class="v2-section">
-      <div class="v2-card">
-        <div class="v2-card-header">
-          <span class="v2-card-title">🗓️ Brahmacharya Calendar</span>
-          <div class="v2-cal-legend">
-            <span class="v2-leg v2-leg-done">●</span><span class="v2-leg-txt">Done</span>
-            <span class="v2-leg v2-leg-miss">●</span><span class="v2-leg-txt">Missed</span>
-            <span class="v2-leg v2-leg-gold">●</span><span class="v2-leg-txt">Today</span>
-          </div>
+      <section class="card-section">
+        <h3 class="section-title">📅 My Journey Calendar</h3>
+        <div class="calendar-nav">
+          <button class="cal-nav-btn" onclick="calPrevMonth()">‹ Prev</button>
+          <span class="cal-nav-title" id="calNavTitle"></span>
+          <button class="cal-nav-btn" onclick="calNextMonth()">Next ›</button>
         </div>
-        <div class="v2-cal-nav">
-          <button class="v2-cal-nav-btn" onclick="calPrevMonth()">‹</button>
-          <span class="v2-cal-nav-title" id="calNavTitle"></span>
-          <button class="v2-cal-nav-btn" onclick="calNextMonth()">›</button>
+        <div class="calendar-grid" id="calendarGrid"></div>
+        <div class="cal-bottom-legend">
+          <span class="cal-leg-item"><span class="cal-leg-dot" style="background:#10b981"></span>Done</span>
+          <span class="cal-leg-item"><span class="cal-leg-dot" style="background:#ef4444"></span>Missed</span>
+          <span class="cal-leg-item"><span class="cal-leg-dot" style="background:linear-gradient(135deg,#92400e,#f59e0b)"></span>Redeemed</span>
+          <span class="cal-leg-item"><span class="cal-leg-dot" style="background:rgba(123,47,255,.5);border:2px solid var(--purple-bright)"></span>Today</span>
         </div>
-        <div class="calendar-grid v2-calendar" id="calendarGrid"></div>
-      </div>
+      </section>
     </section>
 
     <!-- SECTION 4 — PROGRESS ANALYTICS -->
@@ -1441,7 +1544,7 @@ color:#d946ef;
             <div class="v2-acc-trigger" onclick="toggleAcc(this)"><span>❓ FAQ</span><span class="v2-acc-arrow">›</span></div>
             <div class="v2-acc-body" id="faqContainer">
               <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">What if I slip and break my streak? <span class="faq-arrow">▼</span></div><div class="faq-a">Do not give up. Use Streak Redemption (500 pts) to recover 1 missed day, or start fresh. Every warrior falls — what matters is rising again.</div></div>
-              <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">How does 5AM Club work? <span class="faq-arrow">▼</span></div><div class="faq-a">Check in between 5:00–6:00 AM. At 5:00 AM sharp = 60 pts. Every minute late = -1 pt. Join the live session after attendance.</div></div>
+              <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">How does 5AM Club work? <span class="faq-arrow">▼</span></div><div class="faq-a">Check in between 4:00–6:00 AM. 4:00–4:59 AM = 60 pts ⭐ Early Bird. 5:00 AM sharp = 60 pts. 5:01–5:59 AM = 60 minus minutes late. Join the live session after attendance.</div></div>
               <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">Does this app work offline? <span class="faq-arrow">▼</span></div><div class="faq-a">Yes! BrahmaMode is a PWA. Install it from your browser — it works offline, loads instantly, and has a home screen icon.</div></div>
             </div>
           </div>
@@ -1608,7 +1711,7 @@ color:#d946ef;
 
   <!-- ═══ 5AM CLUB TAB ═══ -->
   <div id="tab-club" style="display:none;">
-    <div style="max-width:480px;margin:0 auto;padding-bottom:100px;">
+    <div class="bm-screen">
 
       <!-- Golden Sunrise Hero -->
       <div class="club-hero-section">
@@ -1788,8 +1891,8 @@ color:#d946ef;
         </div>
         <div class="club-wakeup-calendar" id="clubWakeupCalNew"></div>
         <div class="club-cal-legend">
-          <div class="club-cal-legend-item"><div class="club-cal-legend-dot" style="background:#10b981"></div> Before 6AM ✅</div>
-          <div class="club-cal-legend-item"><div class="club-cal-legend-dot" style="background:#ef4444"></div> After 6AM ❌</div>
+          <div class="club-cal-legend-item"><div class="club-cal-legend-dot" style="background:#10b981"></div> 4–6AM ✅</div>
+          <div class="club-cal-legend-item"><div class="club-cal-legend-dot" style="background:#ef4444"></div> Outside window ❌</div>
           <div class="club-cal-legend-item"><div class="club-cal-legend-dot" style="background:rgba(123,47,255,.3)"></div> No check-in</div>
         </div>
       </div>
@@ -1797,7 +1900,7 @@ color:#d946ef;
       <!-- Points Rules -->
       <div class="wkcal-pts-card" style="margin:0 16px 16px;">
         <div class="wkcal-pts-title">⚡ Points System</div>
-        <div class="wkcal-pts-row"><span class="wkcal-pts-key">🟡 On time (5:00 AM sharp)</span><span class="wkcal-pts-val gold">60 pts</span></div>
+        <div class="wkcal-pts-row"><span class="wkcal-pts-key">⭐ Early Bird (4–4:59 AM)</span><span class="wkcal-pts-val gold">60 pts</span></div>
         <div class="wkcal-pts-row"><span class="wkcal-pts-key">⏱ Every minute late</span><span class="wkcal-pts-val red">-1 pt / min</span></div>
         <div class="wkcal-pts-row"><span class="wkcal-pts-key">🔴 Last possible entry (5:59 AM)</span><span class="wkcal-pts-val red">1 pt</span></div>
         <div class="wkcal-pts-row"><span class="wkcal-pts-key">🔒 After 6:00 AM</span><span class="wkcal-pts-val closed">Window Closed</span></div>
@@ -1831,7 +1934,7 @@ color:#d946ef;
 
   <!-- ═══ RANKS TAB ═══ -->
   <div id="tab-ranks" style="display:none;">
-    <div style="max-width:480px;margin:0 auto;padding-bottom:100px;">
+    <div class="bm-screen">
       <div class="bm-topbar"><div style="width:36px"></div><div class="bm-screen-title">Leaderboard</div><div style="width:36px"></div></div>
 
       <!-- Tabs -->
@@ -2304,8 +2407,8 @@ color:#d946ef;
       </div>
       <div class="club-wakeup-calendar" id="clubWakeupCal"></div>
       <div class="club-cal-legend">
-        <div class="club-cal-legend-item"><div class="club-cal-legend-dot" style="background:#10b981"></div> Before 6AM ✅</div>
-        <div class="club-cal-legend-item"><div class="club-cal-legend-dot" style="background:#ef4444"></div> After 6AM ❌</div>
+        <div class="club-cal-legend-item"><div class="club-cal-legend-dot" style="background:#10b981"></div> 4–6AM ✅</div>
+        <div class="club-cal-legend-item"><div class="club-cal-legend-dot" style="background:#ef4444"></div> Outside window ❌</div>
         <div class="club-cal-legend-item"><div class="club-cal-legend-dot" style="background:rgba(123,47,255,.3)"></div> No check-in</div>
       </div>
     </section>
@@ -2314,11 +2417,12 @@ color:#d946ef;
     <section class="card-section" style="padding:1.25rem">
       <h3 class="section-title">⚡ Points System</h3>
       <div style="background:rgba(123,47,255,0.08);border:1px solid rgba(123,47,255,0.25);border-radius:14px;padding:1.1rem;display:flex;flex-direction:column;gap:.65rem">
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem"><span style="color:var(--muted)">⏰ Check-in Window</span><span style="color:#fff;font-weight:600">5:00 AM — 6:00 AM</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem"><span style="color:var(--muted)">⏰ Check-in Window</span><span style="color:#fff;font-weight:600">4:00 AM — 6:00 AM</span></div>
         <div style="height:1px;background:rgba(255,255,255,0.07)"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem"><span style="color:var(--muted)">⭐ Early Bird (4:00–4:59 AM)</span><span style="color:#fcd34d;font-weight:700">60 pts</span></div>
         <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem"><span style="color:var(--muted)">🟡 On time (5:00 AM sharp)</span><span style="color:#fcd34d;font-weight:700">60 pts</span></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem"><span style="color:var(--muted)">⏱ Every minute late</span><span style="color:#f87171;font-weight:600">−1 pt / min</span></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem"><span style="color:var(--muted)">🔴 Last possible entry (5:59 AM)</span><span style="color:#f87171;font-weight:600">1 pt</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem"><span style="color:var(--muted)">⏱ 5:01–5:59 AM (−1pt/min)</span><span style="color:#f87171;font-weight:600">59–1 pts</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem"><span style="color:var(--muted)">🔴 Last entry (5:59 AM)</span><span style="color:#f87171;font-weight:600">1 pt</span></div>
         <div style="display:flex;justify-content:space-between;align-items:center;font-size:.9rem"><span style="color:var(--muted)">🔒 After 6:00 AM</span><span style="color:#6b7280;font-weight:600">Window Closed</span></div>
         <div style="height:1px;background:rgba(255,255,255,0.07)"></div>
         <div style="font-size:.78rem;color:var(--muted);text-align:center;font-style:italic">The earlier you rise, the more you earn. Discipline is rewarded.</div>
