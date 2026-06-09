@@ -95,8 +95,14 @@ function showScreen(id) {
 function initSB() {
   try {
     if (window.supabase && window.supabase.createClient) {
-      sb = window.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      console.log('✅ Supabase ready');
+      sb = window.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: window.localStorage
+  }
+});      console.log('✅ Supabase ready');
     } else {
       console.warn('Supabase CDN not loaded — offline mode');
     }
