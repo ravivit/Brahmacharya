@@ -1,9 +1,5 @@
 // BrahmaMode SW v4 — Cache-first + Offline
-<<<<<<< HEAD
-const CACHE_NAME = 'brahmamode-v4';
-=======
-const CACHE_NAME = 'brahmamode-v5';
->>>>>>> eed6ee4 (BrahmaMode latest updates)
+const CACHE_NAME = 'brahmamode-v6';
 const ASSETS = [
   '/',
   '/index.html',

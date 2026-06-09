@@ -154,7 +154,10 @@ async function doLogin() {
   try {
     const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
     if (error) throw error;
+
     await onLogin(data.user);
+    injectNotifBell();
+
   } catch(e) {
     el('loginErr').textContent = '❌ ' + e.message;
   } finally {
@@ -177,6 +180,9 @@ async function doRegister() {
     // 1. Create auth user
     const { data, error } = await sb.auth.signUp({ email, password: pass });
     if (error) throw error;
+   
+    if (!data.user) throw new Error('Registration failed. Try again.');
+if (data.user.identities && data.user.identities.length === 0) throw new Error('Email already registered. Please login.');
     const user = data.user;
     // 2. Save profile
     const prof = { user_id: user.id, name, goal, startDate, email };
@@ -1347,7 +1353,7 @@ function setClubText(ids, text) {
 }
 
 function updateClubClock() {
-  const now = new Date();
+  const now = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Kolkata'}));
   const totalSecs = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
   const openSecs  = 5 * 3600;  // 5:00 AM
   const closeSecs = 6 * 3600;  // 6:00 AM
@@ -1388,7 +1394,8 @@ function updateClubClock() {
   setClubText(['clubWindowStatus', 'clubWindowStatusNew'], statusText);
 
   const totalMins = Math.floor(totalSecs / 60);
-  updateClubButtons(totalMins, earlySecs / 60, closeSecs / 60);
+ updateClubButtons(totalMins, openSecs / 60, closeSecs / 60);
+
 }
 
 function applyJoinBtnState(btn, alreadyDone, totalMins, openMins, closeMins, isNew) {
@@ -1427,21 +1434,22 @@ function applyWakeBtnState(btn, wakeData, alreadyDone) {
     const { time, under6 } = JSON.parse(wakeData);
     btn.textContent = `⏰ Woke up at ${time}`;
     btn.disabled = true;
-    btn.classList.remove('wakeup-done-green', 'wakeup-done-red');
+    btn.classList.remove('wakeup-done-green', 'wakeup-done-red', 'wakeup-blink');
     btn.classList.add(under6 ? 'wakeup-done-green' : 'wakeup-done-red');
     btn.style.animation = 'none';
     if (noteEl) { noteEl.style.display = 'flex'; noteEl.textContent = under6 ? '⏰ Woke up – Before 6AM ✅' : '⏰ Woke up – After 6AM ❌'; }
   } else if (alreadyDone) {
     btn.textContent = '⏰ Woke up — Auto marked ✅';
     btn.disabled = true;
-    btn.classList.remove('wakeup-done-green', 'wakeup-done-red');
+    btn.classList.remove('wakeup-done-green', 'wakeup-done-red', 'wakeup-blink');
     btn.classList.add('wakeup-done-green');
     btn.style.animation = 'none';
     if (noteEl) { noteEl.style.display = 'flex'; noteEl.textContent = '⏰ Woke up – Auto marked ✅'; }
   } else {
-    btn.textContent = '⏰ WAKE UP';
+    btn.textContent = '⏰ WAKEUP ATTENDANCE';
     btn.disabled = false;
-    btn.classList.remove('wakeup-done-green', 'wakeup-done-red');
+    btn.classList.remove('wakeup-done-green', 'wakeup-done-red', 'wakeup-blink');
+    btn.classList.add('wakeup-blink');
     btn.style.animation = '';
     if (noteEl) noteEl.style.display = 'none';
   }
@@ -1479,7 +1487,7 @@ async function hasClubCheckinToday(dateStr) {
 async function clubCheckIn() {
   if (guestBlock('5AM Club Attendance')) return;
   if (!currentUser) return;
-  const now = new Date();
+ const now = new Date(new Date().toLocaleString('en-US', {timeZone: 'Asia/Kolkata'}));
   const h = now.getHours(), m = now.getMinutes();
   const totalMins = h * 60 + m;
   const openMins  = 5 * 60;  // 5:00 AM
@@ -2090,6 +2098,7 @@ async function loadDMUsers() {
   });
 }
 
+
 async function openDMWith(userId, userName) {
   dmWithUserId = userId;
   dmWithUserName = userName;
@@ -2101,6 +2110,7 @@ async function openDMWith(userId, userName) {
   convo.style.flexDirection = 'column';
   convo.style.flex = '1';
   convo.style.overflow = 'hidden';
+  convo.style.position = "ewltive "
 
   const initial = userName[0].toUpperCase();
   document.getElementById('dmWithAvatar').textContent = initial;
@@ -2147,7 +2157,7 @@ function renderDMBubble(m, box, animate = true) {
   const dateStr = m.created_at.split('T')[0];
 
   maybeAddDateDivider(box, dateStr);
-
+  
   const wrap = document.createElement('div');
   wrap.className = `chat-msg-wrap ${isMine ? 'mine' : 'theirs'}`;
   wrap.setAttribute('data-id', m.id);
@@ -2228,6 +2238,7 @@ async function sendDM() {
     created_at: new Date().toISOString(),
     _temp: true
   };
+  
   if (box) { renderDMBubble(tempMsg, box, true); box.scrollTop = box.scrollHeight; }
 
   const { data: inserted } = await sb.from('dm_messages').insert({
@@ -2508,6 +2519,8 @@ window.showClub = function() {
     }
   }
 };
+
+
 
 // ============================================================
 // BRAHMA LEADERBOARD — REAL DATA
@@ -3244,7 +3257,7 @@ let bmUnread = 0;
 
 function injectNotifBell() {
   if (document.getElementById('bmBell')) return;
-  if (window._guestMode) return; // No notif bell in guest mode
+  if (window._guestMode) { setTimeout(injectNotifBell, 1000); return; } // No notif bell in guest mode
   const bell = document.createElement('button');
   bell.id = 'bmBell';
   bell.onclick = bmOpenNotifs;
