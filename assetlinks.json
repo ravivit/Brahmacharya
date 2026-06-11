@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "space.brahmamode.www.twa",
+    "sha256_cert_fingerprints": ["FF:1C:18:9E:C6:FA:51:A4:C9:98:F4:CD:80:A2:F3:B3:30:85:DB:0A:24:33:66:10:A3:2B:85:5E:DD:D5:B7:76"]
+  }
+}]
