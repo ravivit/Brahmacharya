@@ -68,54 +68,43 @@
   const LS_KEY = d => `bms_day_${getUID()}_${d}`;
 
   function lsSave(date, tasks, habits, extra={}) {
-    try {
-      localStorage.setItem(LS_KEY(date), JSON.stringify({tasks, habits, ...extra, _ts: Date.now()}));
-    } catch(_) {}
+    try { localStorage.setItem(LS_KEY(date), JSON.stringify({tasks, habits, ...extra, _ts:Date.now()})); } catch(_) {}
   }
 
   function lsLoad(date) {
-    try {
-      const raw = localStorage.getItem(LS_KEY(date));
-      return raw ? JSON.parse(raw) : null;
-    } catch(_) { return null; }
+    try { const r=localStorage.getItem(LS_KEY(date)); return r?JSON.parse(r):null; } catch(_) { return null; }
   }
 
   async function loadDay(date) {
-    // 1. Show localStorage instantly
-    const cached = lsLoad(date);
-    if (cached && (cached.tasks?.length || cached.habits?.length)) {
-      // return cached immediately, Supabase will refresh in background
-      S.tasks = cached.tasks?.length ? cached.tasks : defaultTasks();
-      S.habits = cached.habits?.length ? cached.habits : defaultHabits();
-      S.dayCompleted = cached.day_completed || false;
-      S.completedAt = cached.completed_at || null;
-      renderAll();
-    }
-    // 2. Fetch from Supabase and update
+    // Try Supabase first
     try {
       const {data,error}=await getSB().from(TABLE).select('*').eq('user_id',getUID()).eq('date',date).single();
-      if (error||!data) {
-        if (!cached) return {tasks:defaultTasks(),habits:defaultHabits(),day_completed:false,completed_at:null};
-        return {tasks:S.tasks,habits:S.habits,day_completed:S.dayCompleted,completed_at:S.completedAt};
+      if (!error&&data) {
+        const result={
+          tasks:(data.tasks&&data.tasks.length)?data.tasks:defaultTasks(),
+          habits:(data.habits&&data.habits.length)?data.habits:defaultHabits(),
+          day_completed:data.day_completed||false,
+          completed_at:data.completed_at||null,
+        };
+        lsSave(date,result.tasks,result.habits,{day_completed:result.day_completed,completed_at:result.completed_at});
+        return result;
       }
-      const result = {
-        tasks: (data.tasks&&data.tasks.length) ? data.tasks : defaultTasks(),
-        habits: (data.habits&&data.habits.length) ? data.habits : defaultHabits(),
-        day_completed: data.day_completed||false,
-        completed_at: data.completed_at||null,
+    } catch(_) {}
+    // Fallback: localStorage
+    const cached=lsLoad(date);
+    if (cached&&(cached.tasks?.length||cached.habits?.length)) {
+      return {
+        tasks:cached.tasks||defaultTasks(),
+        habits:cached.habits||defaultHabits(),
+        day_completed:cached.day_completed||false,
+        completed_at:cached.completed_at||null,
       };
-      // Update localStorage with fresh data
-      lsSave(date, result.tasks, result.habits, {day_completed: result.day_completed, completed_at: result.completed_at});
-      return result;
-    } catch(_) {
-      if (cached) return {tasks:cached.tasks||defaultTasks(),habits:cached.habits||defaultHabits(),day_completed:cached.day_completed||false,completed_at:cached.completed_at||null};
-      return {tasks:defaultTasks(),habits:defaultHabits(),day_completed:false,completed_at:null};
     }
+    return {tasks:defaultTasks(),habits:defaultHabits(),day_completed:false,completed_at:null};
   }
 
   async function saveDay(date,tasks,habits,extra={}) {
-    // Save to localStorage immediately
-    lsSave(date, tasks, habits, extra);
+    lsSave(date,tasks,habits,extra); // instant local save
     try {
       await getSB().from(TABLE).upsert(
         {user_id:getUID(),date,tasks,habits,updated_at:new Date().toISOString(),...extra},
@@ -1027,8 +1016,17 @@
   }
 
   // ── BOOT ─────────────────────────────────────────────────
+  async function waitForAuth(maxMs=5000) {
+    // Wait until window.currentUser is set by app's own auth
+    const start=Date.now();
+    while (!window.currentUser?.id && Date.now()-start<maxMs) {
+      await new Promise(r=>setTimeout(r,100));
+    }
+  }
+
   async function boot() {
     if (!getSB()) { setTimeout(boot,800); return; }
+    await waitForAuth(); // wait for app auth — critical!
     await autoRedCheck();
     injectNav(); buildPage();
     const d=await loadDay(S.date);
