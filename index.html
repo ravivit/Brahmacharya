@@ -1120,6 +1120,7 @@ color:#d946ef;
   .bottom-nav { max-width:860px; }
 }
 </style>
+  <link rel="stylesheet" href="schedule-tab.css">
 </head>
 <body>
 
@@ -1961,6 +1962,7 @@ color:#d946ef;
       <div class="ranks-tabs" style="margin:0 16px 20px;">
         <button class="ranks-tab active" id="rankTabBrahma" onclick="switchRankTab('brahma')">Brahmacharya</button>
         <button class="ranks-tab" id="rankTab5am" onclick="switchRankTab('5am')">5AM Club</button>
+        <button class="ranks-tab" id="rankTabSchedule" onclick="switchRankTab('schedule')">📅 Schedule</button>
       </div>
 
       <!-- Brahmacharya Leaderboard — Real data rendered by renderBrahmaLb() -->
@@ -1985,6 +1987,18 @@ color:#d946ef;
         </div>
         <div class="club-lb-list" id="clubLbListNew"></div>
               </div>
+
+      <!-- Schedule Leaderboard Panel -->
+      <div id="rankPanelSchedule" style="display:none;">
+        <div class="club-lb-tabs" style="padding:0 16px 12px;">
+          <button class="club-lb-tab-btn active" id="schLbTabToday"  onclick="switchSchLbTab('today')">🌅 Today</button>
+          <button class="club-lb-tab-btn"        id="schLbTabStreak" onclick="switchSchLbTab('streak')">🔥 Streak</button>
+          <button class="club-lb-tab-btn"        id="schLbTabPoints" onclick="switchSchLbTab('points')">⚡ Points</button>
+        </div>
+        <div id="schLbList" style="padding:0 16px 20px;">
+          <div style="color:var(--muted);text-align:center;padding:30px;font-style:italic;font-size:.82rem">⏳ Loading...</div>
+        </div>
+      </div>
 
     </div>
   </div><!-- /tab-ranks -->
@@ -2652,8 +2666,89 @@ function syncRanksTab(){
 function switchRankTab(t){
   document.getElementById('rankTabBrahma').classList.toggle('active',t==='brahma');
   document.getElementById('rankTab5am').classList.toggle('active',t==='5am');
+  document.getElementById('rankTabSchedule').classList.toggle('active',t==='schedule');
   document.getElementById('rankPanelBrahma').style.display=t==='brahma'?'block':'none';
   document.getElementById('rankPanel5am').style.display=t==='5am'?'block':'none';
+  document.getElementById('rankPanelSchedule').style.display=t==='schedule'?'block':'none';
+  if(t==='schedule') renderScheduleLb();
+}
+
+let _schLbTab='today';
+function switchSchLbTab(t){
+  _schLbTab=t;
+  ['today','streak','points'].forEach(x=>{
+    const btn=document.getElementById('schLbTab'+x.charAt(0).toUpperCase()+x.slice(1));
+    if(btn) btn.classList.toggle('active',x===t);
+  });
+  renderScheduleLb(t);
+}
+
+async function renderScheduleLb(tab){
+  if(tab) _schLbTab=tab;
+  const el=document.getElementById('schLbList');
+  if(!el) return;
+  el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted);font-style:italic;font-size:.82rem">⏳ Loading...</div>';
+  try{
+    const sb=window.sb||window.supabase;
+    if(!sb||!navigator.onLine){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)">📵 Offline</div>';return;}
+    const todayStr=(()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})();
+    const [ptsRes,schedRes,profRes]=await Promise.all([
+      sb.from('schedule_points').select('user_id,points'),
+      sb.from('daily_schedules').select('user_id,date,day_completed,completed_at').eq('day_completed',true).order('date',{ascending:false}),
+      sb.from('bct_profiles').select('user_id,name'),
+    ]);
+    const nameMap={};
+    (profRes.data||[]).forEach(r=>{if(r.name)nameMap[r.user_id]=r.name;});
+    const ptMap={};
+    (ptsRes.data||[]).forEach(r=>{ptMap[r.user_id]=(ptMap[r.user_id]||0)+(r.points||0);});
+    // Streaks
+    const byUser={};
+    (schedRes.data||[]).forEach(r=>{if(!byUser[r.user_id])byUser[r.user_id]=[];byUser[r.user_id].push(r);});
+    const streakMap={},todayMap={};
+    Object.keys(byUser).forEach(uid=>{
+      const dates=[...new Set(byUser[uid].map(r=>r.date))].sort((a,b)=>b.localeCompare(a));
+      let st=0,check=todayStr;
+      for(let i=0;i<365;i++){
+        if(dates.includes(check)){st++;const prev=new Date(check+'T00:00:00');prev.setDate(prev.getDate()-1);check=prev.getFullYear()+'-'+String(prev.getMonth()+1).padStart(2,'0')+'-'+String(prev.getDate()).padStart(2,'0');}
+        else break;
+      }
+      streakMap[uid]=st;
+      const todayRec=byUser[uid].find(r=>r.date===todayStr);
+      if(todayRec) todayMap[uid]=todayRec.completed_at||true;
+    });
+    const allUIDs=[...new Set([...Object.keys(ptMap),...Object.keys(streakMap)])];
+    let warriors=allUIDs.map(uid=>({uid,name:nameMap[uid]||uid.slice(0,8)+'…',pts:ptMap[uid]||0,streak:streakMap[uid]||0,todayDone:!!todayMap[uid],completedAt:todayMap[uid]||null}));
+
+    if(_schLbTab==='today') warriors=warriors.filter(w=>w.todayDone).sort((a,b)=>(a.completedAt||'').localeCompare(b.completedAt||''));
+    else if(_schLbTab==='streak') warriors=warriors.filter(w=>w.streak>0).sort((a,b)=>b.streak-a.streak||b.pts-a.pts);
+    else warriors=warriors.filter(w=>w.pts>0).sort((a,b)=>b.pts-a.pts||b.streak-a.streak);
+
+    if(!warriors.length){el.innerHTML='<div style="text-align:center;padding:30px;color:var(--muted);font-style:italic">No data yet — complete your schedule! 💪</div>';return;}
+
+    const medals=['🥇','🥈','🥉'];
+    const myUID=window.currentUser?.id;
+    el.innerHTML=warriors.slice(0,20).map((w,i)=>{
+      const isMe=w.uid===myUID;
+      const rank=medals[i]||(i+1);
+      const valStr=_schLbTab==='today'
+        ?(w.completedAt?new Date(w.completedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}):'✅')
+        :_schLbTab==='streak'
+        ?`🔥 ${w.streak}d`
+        :`⚡ ${w.pts} pts`;
+      const subStr=_schLbTab==='today'?`⚡ ${w.pts} pts · 🔥 ${w.streak}d streak`
+        :_schLbTab==='streak'?`⚡ ${w.pts} pts total`
+        :`🔥 ${w.streak} day streak`;
+      return `<div class="lb-new-row${isMe?' is-me':''}" style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.05);">
+        <div class="lb-new-rank" style="width:28px;text-align:center;font-size:.9rem;font-weight:700;color:rgba(255,255,255,.4);flex-shrink:0;">${rank}</div>
+        <div class="lb-new-av" style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7b2fff,#a855f7);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.8rem;color:#fff;flex-shrink:0;">${(w.name[0]||'?').toUpperCase()}</div>
+        <div class="lb-new-info" style="flex:1;min-width:0;">
+          <div class="lb-new-name" style="font-size:.85rem;font-weight:700;color:${isMe?'var(--gold)':'#fff'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${w.name}${isMe?' (You)':''}</div>
+          <div class="lb-new-sub" style="font-size:.65rem;color:var(--muted);margin-top:2px;">${subStr}</div>
+        </div>
+        <div style="font-size:.9rem;font-weight:800;color:${_schLbTab==='today'?'#00e676':_schLbTab==='streak'?'#f59e0b':'#a78bfa'};white-space:nowrap;">${valStr}</div>
+      </div>`;
+    }).join('');
+  }catch(e){console.error('renderScheduleLb:',e);el.innerHTML='<div style="text-align:center;padding:24px;color:var(--muted)">❌ Error loading</div>';}
 }
 function switchClbTab(t){
   ['today','week','month'].forEach(x=>{document.getElementById('clbTab'+x.charAt(0).toUpperCase()+x.slice(1)).classList.toggle('active',x===t);});
@@ -2753,5 +2848,7 @@ document.getElementById('installPopupSkip').addEventListener('click', () => {
 
 
 </script>
+</script>
+<script src="schedule-tab.js"></script>
 </body>
 </html>

@@ -2529,64 +2529,151 @@ window.showClub = function() {
 
 
 // ============================================================
-// BRAHMA LEADERBOARD — REAL DATA
+// BRAHMA LEADERBOARD — REAL DATA (Today / Streak / Points tabs)
 // ============================================================
-async function renderBrahmaLb() {
+const BRAHMA_BADGES = [
+  {days:90,icon:'👑',name:'Brahmachari',bracket:'Powerful Man',     metal:'Crown'   },
+  {days:50,icon:'🔱',name:'Agni',        bracket:'Inner Fire',       metal:'Titanium'},
+  {days:30,icon:'✨',name:'Ojas',        bracket:'Powerful Aura',    metal:'Kohinoor'},
+  {days:21,icon:'💎',name:'Vira',        bracket:'Disciplined Aura', metal:'Diamond' },
+  {days:15,icon:'🥇',name:'Dhira',       bracket:'Positive Aura',    metal:'Gold'    },
+  {days:7, icon:'🥈',name:'Tapasvi',     bracket:'Discipline Forged',metal:'Silver'  },
+  {days:3, icon:'🏅',name:'Arambha',     bracket:'Stay Consistent',  metal:'Bronze'  },
+  {days:1, icon:'🪙',name:'Beej',        bracket:'First Spark',      metal:'Copper'  },
+];
+function getBrahmaBadge(streak) {
+  return BRAHMA_BADGES.find(b => streak >= b.days) || null;
+}
+
+let _brahmaWarriors = null; // cache
+let _brahmaTab = 'points';  // default tab
+
+async function renderBrahmaLb(tab) {
+  if (tab) _brahmaTab = tab;
+  const podEl  = document.getElementById('brahmaPodium');
+  const listEl = document.getElementById('brahmaLbList');
+
   if (!sb || !navigator.onLine) {
-    const pod = document.getElementById('brahmaPodium');
-    const list = document.getElementById('brahmaLbList');
-    if (pod) pod.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px">📵 Offline</div>';
-    if (list) list.innerHTML = '';
+    if (podEl)  podEl.innerHTML  = '<div style="text-align:center;color:var(--muted);padding:20px">📵 Offline</div>';
+    if (listEl) listEl.innerHTML = '';
     return;
   }
+
+  // Inject tabs UI above podium if not already there
+  const tabsId = 'brahmaLbTabsRow';
+  if (!document.getElementById(tabsId) && podEl) {
+    const tabsEl = document.createElement('div');
+    tabsEl.id = tabsId;
+    tabsEl.style.cssText = 'display:flex;gap:6px;margin-bottom:12px;';
+    tabsEl.innerHTML = `
+      <button onclick="renderBrahmaLb('today')"  id="bbt-today"  style="flex:1;padding:8px 4px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:rgba(255,255,255,.5);font-size:.72rem;font-weight:700;cursor:pointer;letter-spacing:.04em;transition:all .2s;">🌅 Today</button>
+      <button onclick="renderBrahmaLb('streak')" id="bbt-streak" style="flex:1;padding:8px 4px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:rgba(255,255,255,.5);font-size:.72rem;font-weight:700;cursor:pointer;letter-spacing:.04em;transition:all .2s;">🔥 Streak</button>
+      <button onclick="renderBrahmaLb('points')" id="bbt-points" style="flex:1;padding:8px 4px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:rgba(255,255,255,.5);font-size:.72rem;font-weight:700;cursor:pointer;letter-spacing:.04em;transition:all .2s;">⚡ Points</button>`;
+    podEl.parentNode.insertBefore(tabsEl, podEl);
+  }
+  // Highlight active tab
+  ['today','streak','points'].forEach(t => {
+    const btn = document.getElementById('bbt-'+t);
+    if (!btn) return;
+    if (t === _brahmaTab) {
+      btn.style.background = 'rgba(123,47,255,.35)';
+      btn.style.borderColor = '#7b2fff';
+      btn.style.color = '#fff';
+    } else {
+      btn.style.background = 'rgba(255,255,255,.06)';
+      btn.style.borderColor = 'rgba(255,255,255,.12)';
+      btn.style.color = 'rgba(255,255,255,.5)';
+    }
+  });
+
   try {
-    const [{ data: profiles }, { data: allLogs }] = await Promise.all([
-      sb.from('bct_profiles').select('user_id, name, startDate'),
-      sb.from('bct_logs').select('user_id, date, status')
-    ]);
-    if (!profiles) return;
-    const logsByUser = {};
-    (allLogs || []).forEach(r => {
-      if (!logsByUser[r.user_id]) logsByUser[r.user_id] = {};
-      logsByUser[r.user_id][r.date] = r.status;
-    });
-    const warriors = profiles.map(p => {
-      const s = computeUserStats(p, logsByUser[p.user_id] || {});
-      return { ...p, ...s };
-    }).sort((a, b) => b.totalPoints - a.totalPoints || b.currentStreak - a.currentStreak);
-    // Podium
-    const podEl = document.getElementById('brahmaPodium');
+    // Fetch data (cache after first load)
+    if (!_brahmaWarriors) {
+      const [{ data: profiles }, { data: allLogs }] = await Promise.all([
+        sb.from('bct_profiles').select('user_id, name, startDate'),
+        sb.from('bct_logs').select('user_id, date, status')
+      ]);
+      if (!profiles) return;
+      const logsByUser = {};
+      (allLogs || []).forEach(r => {
+        if (!logsByUser[r.user_id]) logsByUser[r.user_id] = {};
+        logsByUser[r.user_id][r.date] = r.status;
+      });
+      _brahmaWarriors = profiles.map(p => {
+        const s = computeUserStats(p, logsByUser[p.user_id] || {});
+        return { ...p, ...s };
+      });
+    }
+
+    // Sort by tab
+    let warriors = [..._brahmaWarriors];
+    const todayStr2 = fmtDate(new Date());
+    if (_brahmaTab === 'today') {
+      // Only warriors who checked in today
+      warriors = warriors.filter(w => w.lastActive === todayStr2)
+        .sort((a,b) => b.totalPoints - a.totalPoints || b.currentStreak - a.currentStreak);
+    } else if (_brahmaTab === 'streak') {
+      warriors = warriors.sort((a,b) => b.currentStreak - a.currentStreak || b.totalPoints - a.totalPoints);
+    } else {
+      warriors = warriors.sort((a,b) => b.totalPoints - a.totalPoints || b.currentStreak - a.currentStreak);
+    }
+
+    // Helper: badge + bracket string under name
+    function badgeLine(w) {
+      const b = getBrahmaBadge(w.bestStreak || w.currentStreak);
+      if (!b) return '🪙 Beej · First Spark';
+      return `${b.icon} ${b.name} · ${b.bracket}`;
+    }
+
+    // Podium (top 3)
     if (podEl && warriors.length) {
       const top3 = warriors.slice(0, 3);
-      const order = [top3[1], top3[0], top3[2]];
-      const slots = ['second','first','third'];
-      const heights = ['52px','72px','40px'];
+      const order = [top3[1], top3[0], top3[2]].filter(Boolean);
+      const slots  = ['second','first','third'];
+      const heights= ['52px','72px','40px'];
       podEl.innerHTML = order.map((w, i) => {
         if (!w) return '';
         const isMe = currentUser && w.user_id === currentUser.id;
+        const b = getBrahmaBadge(w.bestStreak || w.currentStreak);
+        const subLine = _brahmaTab === 'today'
+          ? `✅ Checked in today · ${w.totalPoints.toLocaleString()} pts`
+          : _brahmaTab === 'streak'
+          ? `🔥 ${w.currentStreak} Day · ${w.totalPoints.toLocaleString()} pts`
+          : `⚡ ${w.totalPoints.toLocaleString()} pts · 🔥 ${w.currentStreak}d`;
         return `<div class="podium-slot ${slots[i]}">
           <div class="podium-avatar-wrap">${slots[i]==='first'?'<div class="podium-crown">👑</div>':''}
             <div class="podium-avatar${isMe?' is-me':''}">${(w.name||'W')[0].toUpperCase()}</div></div>
           <div class="podium-name">${w.name}${isMe?' (You)':''}</div>
-          <div class="podium-streak">🔥 ${w.currentStreak} Day</div>
-          <div class="podium-pts"${slots[i]==='first'?' style="color:var(--gold)"':''}>${w.totalPoints.toLocaleString()} pts</div>
+          <div class="podium-streak" style="font-size:.6rem;opacity:.7">${b?b.icon+' '+b.bracket:''}</div>
+          <div class="podium-pts"${slots[i]==='first'?' style="color:var(--gold)"':''}>${subLine}</div>
           <div class="podium-block" style="height:${heights[i]}"><span class="podium-block-num">${slots[i]==='second'?2:slots[i]==='first'?1:3}</span></div>
         </div>`;
       }).join('');
+    } else if (podEl && _brahmaTab === 'today') {
+      podEl.innerHTML = '<div style="text-align:center;color:var(--muted);padding:20px;font-style:italic">No check-ins today yet 🌅</div>';
     }
-    // List
-    const listEl = document.getElementById('brahmaLbList');
+
+    // List (rank 4+)
     if (listEl) {
-      const BADGES = [{days:90,icon:'👑'},{days:30,icon:'✨'},{days:21,icon:'💎'},{days:15,icon:'🥇'},{days:7,icon:'🥈'},{days:3,icon:'🏅'},{days:1,icon:'🪙'}];
-      listEl.innerHTML = warriors.slice(3,20).map((w, i) => {
+      const listWarriors = warriors.slice(3, 20);
+      if (!listWarriors.length) { listEl.innerHTML = ''; return; }
+      listEl.innerHTML = listWarriors.map((w, i) => {
         const isMe = currentUser && w.user_id === currentUser.id;
-        const badge = BADGES.find(b => w.bestStreak >= b.days);
+        const b = getBrahmaBadge(w.bestStreak || w.currentStreak);
+        const valStr = _brahmaTab === 'streak'
+          ? `${w.currentStreak}d 🔥`
+          : `${w.totalPoints.toLocaleString()} pts`;
         return `<div class="lb-new-row${isMe?' is-me':''}">
           <div class="lb-new-rank">${i+4}</div>
           <div class="lb-new-av">${(w.name||'W')[0].toUpperCase()}</div>
-          <div class="lb-new-info"><div class="lb-new-name">${w.name}${isMe?' (You)':''}</div>
-            <div class="lb-new-sub">${badge?badge.icon+' ':''}${w.currentStreak} Day Streak</div></div>
-          <div class="lb-new-right"><div class="lb-new-pts">${w.totalPoints.toLocaleString()} pts</div></div>
+          <div class="lb-new-info">
+            <div class="lb-new-name">${w.name}${isMe?' (You)':''}</div>
+            <div class="lb-new-sub">${badgeLine(w)}</div>
+          </div>
+          <div class="lb-new-right">
+            <div class="lb-new-pts">${valStr}</div>
+            <div style="font-size:.65rem;color:var(--muted);text-align:right">${_brahmaTab==='streak'?w.totalPoints+' pts':'🔥 '+w.currentStreak+'d'}</div>
+          </div>
         </div>`;
       }).join('');
     }
