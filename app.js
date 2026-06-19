@@ -83,6 +83,30 @@ function showToast(msg, dur=3000) {
   const t = el('toast'); t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), dur);
 }
+function bmConfirm(message, opts={}) {
+  return new Promise(resolve => {
+    const overlay = el('bmConfirmOverlay');
+    el('bmConfirmMsg').textContent = message;
+    el('bmConfirmIcon').textContent = opts.icon || '⚠️';
+    el('bmConfirmOk').textContent = opts.okText || 'Confirm';
+    el('bmConfirmCancel').textContent = opts.cancelText || 'Cancel';
+    overlay.classList.add('show');
+    function cleanup(result) {
+      overlay.classList.remove('show');
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      overlay.removeEventListener('click', onOverlay);
+      resolve(result);
+    }
+    const okBtn = el('bmConfirmOk'), cancelBtn = el('bmConfirmCancel');
+    function onOk() { cleanup(true); }
+    function onCancel() { cleanup(false); }
+    function onOverlay(e) { if (e.target === overlay) cleanup(false); }
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    overlay.addEventListener('click', onOverlay);
+  });
+}
 function showScreen(id) {
 ['authScreen','mainScreen','adminScreen','clubScreen','chatScreen'].forEach(s => {
     el(s).style.display = s === id ? 'block' : 'none';
@@ -894,7 +918,7 @@ async function redeemStreak() {
     showToast(`❌ Need 500 pts! You have ${totalPoints} pts.`); return;
   }
 
-  if (!confirm(`Spend 500 points to recover ${targetDay}? Your streak will continue!`)) return;
+  if (!await bmConfirm(`Spend 500 points to recover ${targetDay}? Your streak will continue!`, {icon:'💰', okText:'Spend 500'})) return;
 
   // Save as redeemed in logs
   await sb.from('bct_logs').upsert(
@@ -1281,14 +1305,14 @@ async function init() {
   // Auth listeners
   el('loginBtn').addEventListener('click', doLogin);
   el('registerBtn').addEventListener('click', doRegister);
-  el('logoutBtn').addEventListener('click', doLogout);
+  if(el('logoutBtn')) el('logoutBtn').addEventListener('click', doLogout);
   el('loginPassword').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
   el('regStartDate').value = todayStr;
 
   // Check-in
   el('btnDone').addEventListener('click', ()=>checkIn('done'));
-  el('btnMissed').addEventListener('click', ()=>{
-    if(confirm('Sure? This will break your streak.')) checkIn('missed');
+  el('btnMissed').addEventListener('click', async ()=>{
+    if(await bmConfirm('This will break your current streak. Are you sure?', {icon:'💀', okText:'I Slipped'})) checkIn('missed');
   });
 
   // Triggers (optional — if elements exist)
@@ -3358,6 +3382,7 @@ function injectNotifBell() {
   bell.innerHTML = '🔔<span id="bmBellDot" style="display:none;position:absolute;top:4px;right:4px;min-width:10px;height:10px;background:#ef4444;border-radius:5px;border:2px solid #111118;font-size:.5rem;color:#fff;display:none;align-items:center;justify-content:center;padding:0 2px;"></span>';
   document.body.appendChild(bell);
 }
+window.injectNotifBell = injectNotifBell;
 
 window.bmAddNotif = function(type, title, body) {
   bmNotifs.unshift({ type, title, body, read:false, time:new Date() });
